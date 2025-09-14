@@ -1,5 +1,6 @@
 import pygame
-from .config import UI_W
+# MODIFIED: Imported the initial value constants from your config file
+from .config import UI_W, INIT_PASS, INIT_DOORS, INIT_SPEED, INIT_BOARD, INIT_Q_ROWS, INIT_WAIT_TIME
 
 class Slider:
     def __init__(self, rect, min_v, max_v, value, step=1.0, integer=False, label="", font=None):
@@ -68,20 +69,14 @@ class Button:
         col = (80,120,210) if self.down else (70,100,180)
         pygame.draw.rect(surf, col, self.rect, border_radius=8)
         pygame.draw.rect(surf, (30,50,90), self.rect, 2, border_radius=8)
-
-        # shrink-to-fit with ellipsis
         max_w = self.rect.width - 16
         text = self.text
         if font_m.size(text)[0] > max_w:
-            # try trimming and add …
             trimmed = text
             while trimmed and font_m.size(trimmed + "…")[0] > max_w:
                 trimmed = trimmed[:-1]
             text = (trimmed + "…") if trimmed else "…"
-
         label = font_m.render(text, True, (245,245,245))
-
-        # clip drawing to the button rect so nothing spills over
         prev_clip = surf.get_clip()
         surf.set_clip(self.rect)
         surf.blit(label, label.get_rect(center=self.rect.center))
@@ -96,10 +91,14 @@ def build_ui(font_l, font_m, font_s, width=UI_W, height=620):
     panel.blit(font_l.render("Controls", True, (240,240,240)), (16, y)); y += 36
 
     sliders = []
-    sliders.append(Slider(pygame.Rect(16, y + 26, width - 32, 26),  50, 800, 240, step=10, integer=True, label="Passengers")); y += 70
-    sliders.append(Slider(pygame.Rect(16, y + 26, width - 32, 26),   1, 12,   6, step=1,  integer=True, label="Doors")); y += 70
-    sliders.append(Slider(pygame.Rect(16, y + 26, width - 32, 26), 0.5, 2.5, 1.2, step=0.05, integer=False, label="Speed (m/s)")); y += 70
-    sliders.append(Slider(pygame.Rect(16, y + 26, width - 32, 26), 0.5, 4.0, 1.6, step=0.05, integer=False, label="Board rate (pax/s/door)")); y += 70
+    sliders.append(Slider(pygame.Rect(16, y + 26, width - 32, 26),  50, 800, INIT_PASS,  step=10, integer=True, label="Passengers")); y += 70
+    sliders.append(Slider(pygame.Rect(16, y + 26, width - 32, 26),   1,  12, INIT_DOORS, step=1,  integer=True, label="Doors")); y += 70
+    sliders.append(Slider(pygame.Rect(16, y + 26, width - 32, 26), 0.5, 2.5, INIT_SPEED, step=0.05, integer=False, label="Speed (m/s)")); y += 70
+    sliders.append(Slider(pygame.Rect(16, y + 26, width - 32, 26), 0.5, 4.0, INIT_BOARD, step=0.05, integer=False, label="Board rate (pax/s/door)")); y += 70
+    sliders.append(Slider(pygame.Rect(16, y + 26, width - 32, 26),   1,  30, INIT_Q_ROWS, step=1,  integer=True, label="Queue Rows (x3 slots)")); y += 70
+
+    # --- NEW SLIDER ADDED ---
+    sliders.append(Slider(pygame.Rect(16, y + 26, width - 32, 26),   0,  30, INIT_WAIT_TIME, step=1, integer=True, label="Wait Time (s)")); y += 70
 
     third = (width - 64)//3
     btn_pause = Button(pygame.Rect(16, y, third, 38), "Pause")
