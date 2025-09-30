@@ -1,51 +1,69 @@
 # config.py
 
-import arcade
-
 # --- Screen Constants ---
-SCREEN_WIDTH = 1600
-SCREEN_HEIGHT = 900
-SCREEN_TITLE = "JSON-Based Train Station"
-BACKGROUND_COLOR = arcade.color.BLACK
+SCREEN_WIDTH = 1280
+SCREEN_HEIGHT = 720
+SCREEN_TITLE = "Train Station Simulator"
+FPS = 60
 
-# --- File Paths ---
-LAYOUT_FILE = "layout.json"
+# --- Colors ---
+BLACK = (0, 0, 0)
+WHITE = (255, 255, 255)
+GRAY = (128, 128, 128)
+LIGHT_GRAY = (200, 200, 200)
+GRID_LINE_COLOR = (40, 40, 40)
 
-# --- Sprite Sizing ---
-SOURCE_TILE_SIZE = 1032
-SPRITE_SCALING = 1 / 24
-TILE_SIZE = SOURCE_TILE_SIZE * SPRITE_SCALING
+# --- Fonts ---
+# Using None will load the default pygame font.
+# You can replace this with a path to a .ttf file, e.g., "assets/your_font.ttf"
+FONT_NAME = "assets/Kenney Pixel.ttf"
+FONT_SIZE_TITLE = 74
+FONT_SIZE_BUTTON = 50
+FONT_SIZE_UI = 32  # <-- Add this for the new UI text
 
-# --- TILE MAPPING ---
-# This dictionary maps the numbers from the JSON file to the correct image.
-TILE_MAPPING = {
-    0: ":assets:platform_floor.png",
-    1: ":assets:platform_tile.png",
-    2: ":assets:track_tile.png",
-    3: ":assets:stairs.png",
-    4: ":assets:entrance_tile.png",
+# --- Tile Explanations ---
+TILE_EXPLANATIONS = {
+    1: "Platform Floor: The main walkable area for passengers and staff.",
+    2: "Platform Edge: A floor tile with a yellow warning band. Must be placed adjacent to train tracks.",
+    3: "Track: Rails for the train. Trains will travel along these tiles.",
+    4: "Entrance Marker: A special platform edge that marks where train doors will align for boarding and alighting.",
+    5: "Stairs: The entry and exit point for passengers. Passengers will spawn here."
 }
 
-# --- UI Constants ---
-BUBBLE_WIDTH = 50
-BUBBLE_HEIGHT = 30
-BUBBLE_Y_OFFSET = 50  # How many pixels above the stair sprite to draw the bubble
-BUBBLE_COLOR = arcade.color.WHITE
-TEXT_COLOR = arcade.color.ORANGE_PEEL
-TEXT_FONT_SIZE = 26
+
+# --- Grid Constants ---
+TILE_SIZE = 40
+GRID_WIDTH_TILES = 40  # Number of tiles across
+GRID_HEIGHT_TILES = 20 # Number of tiles down
+
+# --- Tile Mapping ---
+# Maps the integer ID from the JSON/grid data to an image file path
+TILE_MAPPING = {
+    0: "assets/empty_tile.png",
+    1: "assets/platform_floor.png",
+    2: "assets/platform_tile.png",
+    3: "assets/track_tile.png",
+    4: "assets/entrance_tile.png",
+    5: "assets/stairs.png"
+}
 
 
-# --- UI Sprites ---
-BUBBLE_SPRITE = ":assets:passengers_bubble.png"
-BUBBLE_SCALING = 0.15 # Adjust this value to make your sprite bigger or smaller
+# --- Graphics ---
+BACKGROUND_IMAGE_PATH = "assets/background.png" 
+
+# --- UI Image Paths ---
+BUTTON_NORMAL_PATH = "assets/button_normal.png"
+BUTTON_HOVER_PATH = "assets/button_hover.png"
+TITLE_BANNER_PATH = "assets/title_banner.png" 
 
 
-# --- Text Rendering ---
-# The font is now set to your custom font file.
-# Make sure "Kenney Pixel.ttf" is inside your "assets" folder.
-TEXT_FONT_PATH = ":assets:Kenney Pixel.ttf"  # Path used for loading
-TEXT_FONT_NAME = "Kenney Pixel"                     # Internal name used for rendering
+# --- UI Sizing ---
+TITLE_BANNER_WIDTH = 800
+TITLE_BANNER_HEIGHT = 400
 
-# Use these to fine-tune the text's position inside the bubble
-TEXT_X_OFFSET = 20
-TEXT_Y_OFFSET = 2
+
+# --- File Paths ---
+# Path to the user's saved station file
+USER_LAYOUT_PATH = "layouts/station.json"
+# Path to the default empty grid
+DEFAULT_LAYOUT_PATH = "layouts/default.json"

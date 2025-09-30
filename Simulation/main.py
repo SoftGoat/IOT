@@ -1,59 +1,51 @@
 # main.py
 
-import arcade
-import pathlib
+import pygame
+import sys
 import config
-from layout import StationLayout
-from passengers import PassengerManager
-
-class StationApp(arcade.Window):
-    """ Main application class. """
-
-    def __init__(self):
-        super().__init__(config.SCREEN_WIDTH, config.SCREEN_HEIGHT, config.SCREEN_TITLE)
-        arcade.set_background_color(config.BACKGROUND_COLOR)
-        
-        self.scene = None
-        self.station_layout = None
-        self.passenger_manager = None
-        self.camera = arcade.camera.Camera2D(window=self)
-
-    def setup(self):
-        """ Set up the game here. """
-        # NEW: Explicitly load the font. If the path in config.py is wrong,
-        # the program will now crash on this line with a clear error.
-        arcade.load_font(config.TEXT_FONT_PATH)
-
-        self.scene = arcade.Scene()
-        
-        # Create the station layout object
-        self.station_layout = StationLayout()
-        
-        # Setup the passenger manager and give it the stair locations
-        self.passenger_manager = PassengerManager()
-        self.passenger_manager.setup(stair_locations=self.station_layout.stair_locations)
-        
-        # Add the layout sprite list to the scene
-        self.scene.add_sprite_list("Layout", sprite_list=self.station_layout.all_tiles_list)
-
-    def on_draw(self):
-        """ Render the screen. """
-        self.clear()
-        self.camera.use()
-        self.scene.draw()
-        
-        # Draw the passenger UI on top of everything else
-        self.passenger_manager.on_draw()
+from game_states import MainMenu, BuildState
 
 def main():
-    """ Main method """
-    file_path = pathlib.Path(__file__).parent.resolve()
-    assets_path = file_path / "assets"
-    arcade.resources.add_resource_handle("assets", assets_path)
+    pygame.init()
+    screen = pygame.display.set_mode((config.SCREEN_WIDTH, config.SCREEN_HEIGHT))
+    pygame.display.set_caption(config.SCREEN_TITLE)
+    clock = pygame.time.Clock()
+
+    # Dictionary to hold the state CLASSES
+    states = {
+        "MAIN_MENU": MainMenu,
+        "BUILD": BuildState,
+        # "SIMULATION": SimulationState # We will add this later
+    }
     
-    window = StationApp()
-    window.setup()
-    arcade.run()
+    # Start with the name of the first state
+    current_state_name = "MAIN_MENU"
+    # Create an INSTANCE of the first state
+    current_state = states[current_state_name]()
+
+    # Main game loop
+    while True:
+        events = pygame.event.get()
+        for event in events:
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                sys.exit()
+        
+        current_state.handle_events(events)
+        current_state.update()
+        
+        # --- NEW: More efficient state transition logic ---
+        if current_state.done:
+            next_state_name = current_state.next_state
+            
+            # Switch to the new state name
+            current_state_name = next_state_name
+            # Create a new instance of the new state CLASS
+            current_state = states[current_state_name]()
+
+        current_state.draw(screen)
+        pygame.display.flip()
+        clock.tick(config.FPS)
 
 if __name__ == "__main__":
     main()
