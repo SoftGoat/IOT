@@ -54,6 +54,8 @@ BACKGROUND_IMAGE_PATH = "assets/background.png"
 # --- UI Image Paths ---
 BUTTON_NORMAL_PATH = "assets/button_normal.png"
 BUTTON_HOVER_PATH = "assets/button_hover.png"
+BUTTON_IN_GAME = "assets/button_in_game.png"
+BUTTON_IN_GAME_HOVER = "assets/button_in_game_hover.png"
 TITLE_BANNER_PATH = "assets/title_banner.png" 
 
 
@@ -62,8 +64,13 @@ TITLE_BANNER_WIDTH = 800
 TITLE_BANNER_HEIGHT = 400
 
 
-# --- File Paths ---
-# Path to the user's saved station file
-USER_LAYOUT_PATH = "layouts/station.json"
-# Path to the default empty grid
-DEFAULT_LAYOUT_PATH = "layouts/default.json"
+LAYOUTS_DIR = "layouts"
+USER_LAYOUT_PATH = f"{LAYOUTS_DIR}/station.json"
+DEFAULT_LAYOUT_PATH = f"{LAYOUTS_DIR}/default.json"
+
+
+# --- Palette UI Constants ---
+PALETTE_PANEL_WIDTH = 300
+PALETTE_PANEL_X = SCREEN_WIDTH - PALETTE_PANEL_WIDTH
+PALETTE_TILE_SIZE = 64 # Larger size for buttons than the grid tiles
+PALETTE_TILE_PADDING = 10

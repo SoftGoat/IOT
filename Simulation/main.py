@@ -1,9 +1,10 @@
 # main.py
-
 import pygame
 import sys
 import config
-from game_states import MainMenu, BuildState
+from game_states.main_menu import MainMenu
+from game_states.build_state import BuildState
+from game_states.simulation_state import SimulationState
 
 def main():
     pygame.init()
@@ -11,19 +12,15 @@ def main():
     pygame.display.set_caption(config.SCREEN_TITLE)
     clock = pygame.time.Clock()
 
-    # Dictionary to hold the state CLASSES
     states = {
         "MAIN_MENU": MainMenu,
         "BUILD": BuildState,
-        # "SIMULATION": SimulationState # We will add this later
+        "SIMULATION": SimulationState, 
     }
     
-    # Start with the name of the first state
     current_state_name = "MAIN_MENU"
-    # Create an INSTANCE of the first state
     current_state = states[current_state_name]()
 
-    # Main game loop
     while True:
         events = pygame.event.get()
         for event in events:
@@ -34,13 +31,9 @@ def main():
         current_state.handle_events(events)
         current_state.update()
         
-        # --- NEW: More efficient state transition logic ---
         if current_state.done:
             next_state_name = current_state.next_state
-            
-            # Switch to the new state name
             current_state_name = next_state_name
-            # Create a new instance of the new state CLASS
             current_state = states[current_state_name]()
 
         current_state.draw(screen)
