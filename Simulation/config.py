@@ -57,6 +57,8 @@ BUTTON_HOVER_PATH = "assets/button_hover.png"
 BUTTON_IN_GAME = "assets/button_in_game.png"
 BUTTON_IN_GAME_HOVER = "assets/button_in_game_hover.png"
 TITLE_BANNER_PATH = "assets/title_banner.png" 
+PASSENGERS_ICON_PATH = "assets/passengers.png"
+X_ICON_PATH = "assets/X.png"
 
 
 # --- UI Sizing ---
@@ -74,3 +76,12 @@ PALETTE_PANEL_WIDTH = 300
 PALETTE_PANEL_X = SCREEN_WIDTH - PALETTE_PANEL_WIDTH
 PALETTE_TILE_SIZE = 64 # Larger size for buttons than the grid tiles
 PALETTE_TILE_PADDING = 10
+
+
+
+# --- Simulation Graphics ---
+PASSENGER_SPAWN_BUBBLE = "assets/passengers_bubble.png" 
+
+# --- Editable Text Box Constants ---
+SPAWN_COUNT_DEFAULT = 10 
+SPAWN_BUBBLE_SIZE = 60 # Size for the square bubble image and text box
