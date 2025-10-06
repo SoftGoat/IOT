@@ -2,7 +2,7 @@
 
 import pygame
 import config
-from ui_elements import Button
+from ui_elements.button import Button
 from game_states.layout_io import get_saved_layouts, load_layout, get_layout_path
 
 # --- Base Dialog Class (Abstract Template) ---

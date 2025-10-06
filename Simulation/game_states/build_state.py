@@ -3,10 +3,12 @@ import pygame
 import config, os
 from game_states.tile_manager import TileManager
 from game_states.layout_io import load_layout, save_layout
-from ui_elements import TileButton 
+from ui_elements.tile_button import TileButton
 from game_states.state import State
-from ui_elements import TileButton, Button
+from ui_elements.button import Button 
 from dialog import SaveDialog, LoadDialog
+from game_states.structures import TrackStructureManager 
+
 # ----------------------------------------------------------------------
 # I. CORE INTERFACE (Called by main.py)
 # ----------------------------------------------------------------------
@@ -26,6 +28,10 @@ class BuildState(State):
         self.grid_data = self._load_any_layout()
         self.tile_manager = TileManager(config.TILE_MAPPING)
         self.tile_manager.create_all(self.grid_data)
+        self.structure_manager = TrackStructureManager(
+            self.grid_data, 
+            self.tile_manager.update_tile # This function updates the visual sprite in the TileManager
+        )
 
         # UI
         self.font_ui = pygame.font.Font(config.FONT_NAME, config.FONT_SIZE_UI)
@@ -34,17 +40,34 @@ class BuildState(State):
         self.load_dialog = LoadDialog(screen_center, self.load_station_from_name, self._close_dialog)
         self.save_dialog = SaveDialog(screen_center, self.save_station_as, self._close_dialog)
         
-        # <-- NEW: Build Mode Action Buttons (Load/Save) -->
-        btn_w, btn_h = 250, 150
-        btn_x = config.PALETTE_PANEL_X + (config.PALETTE_PANEL_WIDTH - btn_w) // 2
-        btnSave_y = 10
-        btnLoad_y = 70
-        
+        # Action Buttons (Save, Load, Exit)
+        btn_x = config.PALETTE_PANEL_X + (config.PALETTE_PANEL_WIDTH - config.BUILD_BTN_W) // 2 - config.BUILD_BTN_X_OFFSET
+        btnSave_y = config.BUILD_BTN_SAVE_Y
+        btnLoad_y = config.BUILD_BTN_LOAD_Y
+
         # NOTE: save_to_json is used here for the Quick Save button
-        self.save_button = Button(btn_x, btnSave_y, btn_w, btn_h, "Quick Save", self.open_save_dialog, config.BUTTON_IN_GAME, config.BUTTON_IN_GAME_HOVER, hit_size=(200, 50))
-        # Use a new method to launch the (future) dialog
-        self.load_button = Button(btn_x, btnLoad_y, btn_w, btn_h, "Load Station", self.open_load_dialog, config.BUTTON_IN_GAME, config.BUTTON_IN_GAME_HOVER, hit_size=(200, 50))
-        self.action_buttons = [self.save_button, self.load_button]
+        self.save_button = Button(
+            btn_x, btnSave_y, config.BUILD_BTN_W, config.BUILD_BTN_H, 
+            "Quick Save", self.open_save_dialog, 
+            config.BUTTON_IN_GAME, config.BUTTON_IN_GAME_HOVER, 
+            hit_size=config.BUILD_BTN_HIT_SIZE_SAVE, text_size=config.BUILD_BTN_TEXT_SIZE_SAVE
+        )
+        self.load_button = Button(
+            btn_x, btnLoad_y, config.BUILD_BTN_W, config.BUILD_BTN_H, 
+            "Load Station", self.open_load_dialog, 
+            config.BUTTON_IN_GAME, config.BUTTON_IN_GAME_HOVER, 
+            hit_size=config.BUILD_BTN_HIT_SIZE_LOAD, text_size=config.BUILD_BTN_TEXT_SIZE_LOAD
+        )
+        self.escape_button = Button(
+            btn_x + config.BUILD_BTN_W, btnSave_y, 
+            config.BUILD_BTN_W, config.BUILD_BTN_H, 
+            "Exit (Esc)", self.exit_to_main_menu, 
+            config.BUTTON_IN_GAME, config.BUTTON_IN_GAME_HOVER, 
+            hit_size=config.BUILD_BTN_HIT_SIZE_ESCAPE, text_size=config.BUILD_BTN_TEXT_SIZE_ESCAPE
+        )
+        self.action_buttons = [self.save_button, self.load_button, self.escape_button]
+
+
 
 
     def handle_events(self, events):
@@ -59,9 +82,8 @@ class BuildState(State):
         for event in events:
             # Check for State Change/Save Keys
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                self.save_to_json() 
-                self.next_state = "MAIN_MENU"
-                self.done = True
+                self.exit_to_main_menu()
+                return
                 
             # Dispatch event to Action Buttons (Save/Load)
             for button in self.action_buttons:
@@ -109,9 +131,21 @@ class BuildState(State):
         if self.hovered_grid_pos:
             row, col = self.hovered_grid_pos
             if pygame.mouse.get_pressed()[0]:
-                self.paint_at(row, col, self.selected_tile_id)
+                # LEFT CLICK: Delegate to structure manager first, then fall back to default
+                if self.selected_tile_id == 6:
+                    self.structure_manager.try_place_structure(row, col)
+                elif self.structure_manager.try_modify_platform(row, col):
+                    # Modification (2<->4) successful, nothing else to do
+                    pass
+                else:
+                    # Default painting behavior for regular tiles
+                    self.paint_at(row, col, self.selected_tile_id)
+
+
             elif pygame.mouse.get_pressed()[2]:
-                self.erase_at(row, col)
+                # RIGHT CLICK (Erase): Delegate to structure manager first, then fall back to default
+                if not self.structure_manager.try_delete_structure(row, col):
+                    self.erase_at(row, col)
 
     def draw(self, screen):
         """Draws all elements of the build screen."""
@@ -145,21 +179,27 @@ class BuildState(State):
 
     def paint_at(self, row, col, tile_id):
         """Sets a tile's ID and updates the sprite visual."""
+        # Check if the tile is part of a managed structure. If so, painting over it 
+        # with a regular tile should be prevented, unless it's ID 0 (erase).
+        # We rely on the structure manager's delete function for safe structure deletion.
+        
         old = self.grid_data[row][col]
-        if old == tile_id: return
+        # Only allow painting if it's not a managed tile, or if we are painting ID 0.
+        if (old == tile_id): return
+        if (old in [2, 3, 4] and self.structure_manager.try_delete_structure(row, col)):
+            # We just successfully deleted a structure, so we paint the new tile on the now empty space
+            old = 0
+            if tile_id == 0: return # Already erased, nothing more to do
+        
         self.grid_data[row][col] = tile_id
         self.tile_manager.update_tile(old, tile_id, col, row)
 
+
     def erase_at(self, row, col):
         """Paints an empty tile (ID 0)."""
+        # If this is called, it means the structure manager already failed to delete it.
+        # So we just paint ID 0 safely.
         self.paint_at(row, col, 0)
-        
-    # <-- NEW: Dialog Launchers (Placeholders for complex dialogs) -->
-    def open_load_dialog(self):
-        """Launches the Load Station dialog."""
-        # In the full implementation, you'd create and show the dialog here.
-        print("Launching Load Station Dialog...")
-        self.active_dialog = True
         
     def load_station_from_name(self, layout_name):
         """Called by the dialog when a station is selected."""
@@ -167,11 +207,19 @@ class BuildState(State):
             from game_states.layout_io import get_layout_path
             path = get_layout_path(layout_name)
             self.grid_data = load_layout(path)
+            
+            # CRITICAL: Re-initialize and scan the structure manager after loading new data
+            self.structure_manager = TrackStructureManager(
+                self.grid_data, 
+                self.tile_manager.update_tile
+            )
+            
             self.tile_manager.create_all(self.grid_data) # Rebuild visuals
             self._close_dialog()
             print(f"Loaded layout: {layout_name}")
         except FileNotFoundError:
             print(f"Error: Layout {layout_name} not found.")
+
 
     def save_station_as(self, layout_name):
         """Called by the dialog to save to a specific name."""
@@ -207,8 +255,8 @@ class BuildState(State):
         # Start below the new action buttons (adjust y_start)
         current_y = 150 
         
-        for tile_id, path in config.TILE_MAPPING.items():
-            if tile_id == 0: continue
+        for tile_id, path in config.TILE_ICONS.items():
+            if tile_id == 0 or tile_id == 3: continue
 
             original_img = pygame.image.load(path).convert_alpha()
             button_img = pygame.transform.scale(original_img, (config.PALETTE_TILE_SIZE, config.PALETTE_TILE_SIZE))
@@ -227,11 +275,53 @@ class BuildState(State):
         self.selected_tile_id = new_id
 
     def _draw_hover_outline(self, screen):
-        """Draws the white outline around the tile currently under the mouse."""
+        """
+        Draws the white outline and the semi-transparent tile preview 
+        for the tile currently under the mouse.
+        """
         if self.hovered_grid_pos:
             row, col = self.hovered_grid_pos
             x = col * config.TILE_SIZE
             y = row * config.TILE_SIZE
+            
+            # 1. Draw the semi-transparent preview (Ghost Tile)
+            
+            # Special handling for structure tile selection (ID 6): 
+            if self.selected_tile_id == 6:
+                # Use a specific preview color/transparency for structure placement
+                structure_preview_surf = pygame.Surface(
+                    (config.TRACK_LENGTH * config.TILE_SIZE, 2 * config.TILE_SIZE), 
+                    pygame.SRCALPHA
+                )
+                
+                preview_row = row 
+                preview_col = 0
+                
+                # Check if the user clicked the platform row, and adjust to the track row
+                # **CHANGE 1: Update function name**
+                if preview_row > 0 and not self.structure_manager._is_valid_area(preview_row, preview_col):
+                    preview_row -= 1
+                
+                # **CHANGE 2: Update function name**
+                if self.structure_manager._is_valid_area(preview_row, preview_col):
+                    # Valid placement preview color (Blue/Green)
+                    structure_preview_surf.fill((0, 100, 255, 100)) 
+                    screen.blit(structure_preview_surf, (preview_col * config.TILE_SIZE, preview_row * config.TILE_SIZE))
+                else:
+                    # Invalid placement preview color (Red)
+                    structure_preview_surf.fill((255, 0, 0, 100)) 
+                    screen.blit(structure_preview_surf, (preview_col * config.TILE_SIZE, preview_row * config.TILE_SIZE))
+
+
+            # General tile preview logic
+            else:
+                # 1. Get the semi-transparent surface for the selected tile (Opacity 128/255)
+                preview_surface = self.tile_manager.get_tile_image(self.selected_tile_id, opacity=128)
+                
+                # 2. Blit the preview onto the screen
+                screen.blit(preview_surface, (x, y))
+            
+            # 3. Draw the white outline around the single tile
             pygame.draw.rect(screen, config.WHITE, (x, y, config.TILE_SIZE, config.TILE_SIZE), 3)
 
     def _draw_palette_panel(self, screen):
@@ -299,3 +389,9 @@ class BuildState(State):
         """Activates the load dialog."""
         self.active_dialog = self.load_dialog
         self.active_dialog.show()
+
+    def exit_to_main_menu(self):
+        """Exits to the main menu, saving the current layout."""
+        self.save_to_json() 
+        self.next_state = "MAIN_MENU"
+        self.done = True

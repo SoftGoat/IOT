@@ -3,9 +3,13 @@ import pygame
 import config, os
 from game_states.tile_manager import TileManager
 from game_states.layout_io import load_layout, get_layout_path # Ensure get_layout_path is available
-from ui_elements import Button, EditableSpawnCount 
+from ui_elements.button import Button 
+from ui_elements.editable_spawn_count import EditableSpawnCount
+from ui_elements.spawn_config_slider import SpawnConfigSlider
+from ui_elements.text_box import TextBox
+
 from game_states.state import State 
-from dialog import LoadDialog # <-- NEW IMPORT
+from dialog import LoadDialog
 
 # ----------------------------------------------------------------------
 # I. CORE INTERFACE (Called by main.py)
@@ -21,22 +25,37 @@ class SimulationState(State):
         self.tile_manager.create_all(self.grid_data)
         
         # --- Simulation Logic Data ---
+        # spawn_data will now store {(r, c): count} for all stairs
         self.spawn_data = {} 
-        self.active_dialog = None # Tracks the active dialog
-        self.click_lockout_timer = 0 # To prevent click-through after dialog closes
+        self.selected_stairs_pos = None # Tracks the currently selected stairs tile (r, c)
+        self.active_dialog = None 
+        self.click_lockout_timer = 0 
 
         # --- UI Components ---
         self.font_ui = pygame.font.Font(config.FONT_NAME, config.FONT_SIZE_UI)
         self.spawn_counters = self._create_spawn_counters()
         self.action_buttons = self._create_action_buttons()
         
+        # Initialize Spawn Config Slider (Positioned below action buttons)
+        slider_w = config.PALETTE_PANEL_WIDTH - 40
+        slider_x = config.PALETTE_PANEL_X + 20
+        slider_y = 150 
+        slider_h = 100
+        
+        self.spawn_config_slider = SpawnConfigSlider(
+            slider_x, slider_y, slider_w, slider_h, 
+            config.SPAWN_COUNT_DEFAULT, 
+            self._update_selected_stairs_count, # The callback when slider value changes
+            min_val=0, max_val=999 # Reasonable min/max values
+        )
+        self.spawn_config_slider.is_active = False # Hidden until a stair is selected
+        
         # --- Dialog Initialization (NEW) ---
         screen_center = (config.SCREEN_WIDTH // 2, config.SCREEN_HEIGHT // 2)
-        # LoadDialog needs the load callback and the close callback
         self.load_dialog = LoadDialog(
             screen_center, 
-            self.load_new_layout_by_name, # The success callback
-            self._close_dialog           # The close/cancel callback
+            self.load_new_layout_by_name, 
+            self._close_dialog          
         )
 
 
@@ -44,11 +63,21 @@ class SimulationState(State):
         """Handles user input, prioritizing dialogs."""
         
         # 1. Dialog Handling (Highest Priority)
+        # We pass the LIST of events to the dialog, as the dialog's handler 
+        # is expected to iterate over them.
         if self.active_dialog:
             self.active_dialog.handle_events(events)
             return
+            
+        # REMOVED: # 2. Handle Slider Events (if active)
+        # REMOVED: self.spawn_config_slider.handle_event(events)
+        
+        # Now, we iterate over the LIST 'events'
+        for event in events: # event is now a SINGLE event object
+            
+            # --- Handle the Slider (using the SINGLE event) ---
+            self.spawn_config_slider.handle_event(event) # <-- CORRECT: passes the singular 'event'
 
-        for event in events:
             # Check for State Change
             if event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
                 self.next_state = "MAIN_MENU"
@@ -56,11 +85,13 @@ class SimulationState(State):
                 
             # Handle action button events
             for button in self.action_buttons:
-                button.handle_event(event)
+                button.handle_event(event) # Passes the singular 'event'
                 
-            # Handle spawn counter events
-            for counter in self.spawn_counters:
-                counter.handle_event(event)
+                
+            # NEW: Handle mouse click on a stair tile for selection
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1: # Left click
+                mouse_x, mouse_y = event.pos
+                self._select_stairs_at(mouse_x, mouse_y)
 
     def update(self):
         """Updates UI components and core simulation logic."""
@@ -79,9 +110,13 @@ class SimulationState(State):
             self.click_lockout_timer -= 1
             return 
             
+        # Update slider
+        self.spawn_config_slider.update()
+
         # Update spawn counters
         for counter in self.spawn_counters:
-            counter.update()
+            counter.update(self.spawn_config_slider.current_value)
+        
         
         # Add core simulation update logic here later...
         pass
@@ -98,9 +133,15 @@ class SimulationState(State):
         for button in self.action_buttons:
             button.draw(screen)
             
+        # Draw the Spawn Config Slider
+        self.spawn_config_slider.draw(screen)
+        
         # Draw spawn counters (above the tiles)
         for counter in self.spawn_counters:
             counter.draw(screen)
+            
+        # Draw highlight around selected stairs tile
+        self._draw_selected_stairs_highlight(screen)
         
         # Draw dialogs (LAST)
         if self.active_dialog:
@@ -189,40 +230,96 @@ class SimulationState(State):
         """Callback function to update the internal spawn count data."""
         self.spawn_data[(r, c)] = new_count
         print(f"Spawn at ({r}, {c}) set to: {new_count}")
+        
+    def _update_selected_stairs_count(self, new_count):
+        """
+        Callback from the SpawnConfigSlider to update the spawn count 
+        for the currently selected stairs tile.
+        """
+        if self.selected_stairs_pos:
+            r, c = self.selected_stairs_pos
+            self.spawn_data[(r, c)] = new_count
+            
+            # Optional: Find the EditableSpawnCount sprite and update its visual if needed
+            # (Currently the EditableSpawnCount is used in BuildState, but 
+            # if used here, it should be updated, otherwise we rely on the slider text)
+            
+            # Since the EditableSpawnCount is still drawn in SimulationState, 
+            # we should update it to reflect the change made via the slider.
+            for counter in self.spawn_counters:
+                if (counter.rect.x // config.TILE_SIZE, counter.rect.y // config.TILE_SIZE) == (c, r - (config.SPAWN_BUBBLE_SIZE // config.TILE_SIZE // 2)):
+                     counter.value = str(new_count)
+                     break
+            
+            print(f"Slider updated spawn at {self.selected_stairs_pos} to: {new_count}")
 
     def _create_spawn_counters(self):
         """Finds all stairs tiles (ID 5) and creates EditableSpawnCount objects."""
+        # ... (Implementation remains the same) ...
         counters = []
-
-
         for r, row in enumerate(self.grid_data):
             for c, tile_id in enumerate(row):
                 if tile_id == 5:  # Stairs tile
-                    # Grid-based position (top-left of the tile)
                     x_tile = c * config.TILE_SIZE
                     y_tile = r * config.TILE_SIZE
 
-                    # The EditableSpawnCount component needs to know its overall position.
-                    # We'll calculate the center point of the tile for the component to use.
+                    # Calculate the top-left position for the bubble (approximately centered above tile)
                     x_center = x_tile + (config.TILE_SIZE // 2)
-                    y_center = y_tile - (config.SPAWN_BUBBLE_SIZE // 2) 
+                    y_center = y_tile + (config.TILE_SIZE // 2) - config.SPAWN_BUBBLE_SIZE
 
-                    # Create a specific callback using a nested function to capture (r, c)
                     def make_callback(r, c):
                         return lambda new_count: self._update_spawn_data(r, c, new_count)
 
-                    counter = EditableSpawnCount(
-                        # Pass the center position for the component to draw around
-                        x_center, y_center, 
-                        config.SPAWN_COUNT_DEFAULT, 
-                        make_callback(r, c),
-
+                    counter = TextBox(
+                        # Pass the top-left corner of the bubble area
+                        x_center - config.SPAWN_BUBBLE_SIZE // 2, y_center, 
+                        str(config.SPAWN_COUNT_DEFAULT), # Initial text as string
                     )
 
                     # Store the initial value
                     self.spawn_data[(r, c)] = config.SPAWN_COUNT_DEFAULT
                     counters.append(counter)
         return counters
+        
+    def _select_stairs_at(self, mouse_x, mouse_y):
+        """Handles selecting a stairs tile by clicking."""
+        col = mouse_x // config.TILE_SIZE
+        row = mouse_y // config.TILE_SIZE
+        
+        # Check bounds
+        if not (0 <= row < config.GRID_HEIGHT_TILES and 0 <= col < config.GRID_WIDTH_TILES):
+            return 
+            
+        # Check if click is on the grid area (not the control panel)
+        if mouse_x > config.PALETTE_PANEL_X:
+            return 
+            
+        # Check if the clicked tile is a stairs tile (ID 5)
+        if self.grid_data[row][col] == 5:
+            # Select this stairs tile
+            self.selected_stairs_pos = (row, col)
+            print(f"Stairs selected at ({row}, {col}). ACTIVATING SLIDER.")
+            self.spawn_config_slider.is_active = True
+            
+            # Read the current value and update the slider UI
+            current_count = self.spawn_data.get((row, col), config.SPAWN_COUNT_DEFAULT)
+            self.spawn_config_slider.set_value(current_count)
+            print(f"Stairs selected at ({row}, {col}). Current count: {current_count}")
+        else:
+            # Deselect if they click elsewhere on the grid
+            self.selected_stairs_pos = None
+            self.spawn_config_slider.is_active = False
+            
+    def _draw_selected_stairs_highlight(self, screen):
+        """Draws a highlight box around the currently selected stairs tile."""
+        if self.selected_stairs_pos:
+            row, col = self.selected_stairs_pos
+            x = col * config.TILE_SIZE
+            y = row * config.TILE_SIZE
+            
+            # Use a distinctive color for selection, e.g., a bright yellow/green
+            highlight_color = (0, 255, 255) 
+            pygame.draw.rect(screen, highlight_color, (x, y, config.TILE_SIZE, config.TILE_SIZE), 3)
 
     def _draw_control_panel(self, screen):
         """Draws the background panel for control buttons and information (Consistent with BuildState)."""

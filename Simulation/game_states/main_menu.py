@@ -1,7 +1,7 @@
 # game_states/main_menu.py
 import pygame
 import config
-from ui_elements import Button
+from ui_elements.button import Button
 from game_states.state import State
 
 class MainMenu(State):

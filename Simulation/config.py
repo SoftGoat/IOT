@@ -27,7 +27,9 @@ TILE_EXPLANATIONS = {
     2: "Platform Edge: A floor tile with a yellow warning band. Must be placed adjacent to train tracks.",
     3: "Track: Rails for the train. Trains will travel along these tiles.",
     4: "Entrance Marker: A special platform edge that marks where train doors will align for boarding and alighting.",
-    5: "Stairs: The entry and exit point for passengers. Passengers will spawn here."
+    5: "Stairs: The entry and exit point for passengers. Passengers will spawn here.",
+    6: "Places a train track with a platform edge below. Click the platform edge to make an Entrance." 
+
 }
 
 
@@ -36,15 +38,28 @@ TILE_SIZE = 40
 GRID_WIDTH_TILES = 40  # Number of tiles across
 GRID_HEIGHT_TILES = 20 # Number of tiles down
 
+TRACK_LENGTH = 25
+TRACK_ROW_OFFSET = 1 # Row offset for track placement if placed from an infrastructure tile
+
+
 # --- Tile Mapping ---
 # Maps the integer ID from the JSON/grid data to an image file path
 TILE_MAPPING = {
-    0: "assets/empty_tile.png",
-    1: "assets/platform_floor.png",
-    2: "assets/platform_tile.png",
-    3: "assets/track_tile.png",
-    4: "assets/entrance_tile.png",
-    5: "assets/stairs.png"
+    0: "assets/tiles/empty_tile.png",
+    1: "assets/tiles/platform_floor.png",
+    2: "assets/tiles/platform_tile.png",
+    3: "assets/tiles/track_tile.png",
+    4: "assets/tiles/entrance_tile.png",
+    5: "assets/tiles/stairs.png",
+    6: "assets/tiles/track_tile.png" # NEW: We'll use the track image for the structure button, as it represents the main element.
+}
+
+TILE_ICONS = {
+    1: "assets/tiles_icons/platform_floor_icon.png",
+    2: "assets/tiles_icons/platform_tile_icon.png",
+    4: "assets/tiles_icons/entrance_tile_icon.png",
+    5: "assets/tiles_icons/stairs_icon.png",
+    6: "assets/tiles_icons/basic_station_icon.png" # NEW: Reuse track icon
 }
 
 
@@ -52,10 +67,10 @@ TILE_MAPPING = {
 BACKGROUND_IMAGE_PATH = "assets/background.png" 
 
 # --- UI Image Paths ---
-BUTTON_NORMAL_PATH = "assets/button_normal.png"
-BUTTON_HOVER_PATH = "assets/button_hover.png"
-BUTTON_IN_GAME = "assets/button_in_game.png"
-BUTTON_IN_GAME_HOVER = "assets/button_in_game_hover.png"
+BUTTON_NORMAL_PATH = "assets/buttons/button_normal.png"
+BUTTON_HOVER_PATH = "assets/buttons/button_hover.png"
+BUTTON_IN_GAME = "assets/buttons/button_in_game.png"
+BUTTON_IN_GAME_HOVER = "assets/buttons/button_in_game_hover.png"
 TITLE_BANNER_PATH = "assets/title_banner.png" 
 PASSENGERS_ICON_PATH = "assets/passengers.png"
 X_ICON_PATH = "assets/X.png"
@@ -85,3 +100,28 @@ PASSENGER_SPAWN_BUBBLE = "assets/passengers_bubble.png"
 # --- Editable Text Box Constants ---
 SPAWN_COUNT_DEFAULT = 10 
 SPAWN_BUBBLE_SIZE = 60 # Size for the square bubble image and text box
+
+
+
+# --- Build Mode Button Constants ---
+
+# Dimensions
+BUILD_BTN_W = 150
+BUILD_BTN_H = 75
+
+# Positioning Offsets
+BUILD_BTN_X_OFFSET = 50                 # The '- 50' offset in btn_x calculation
+
+# Y-Positions
+BUILD_BTN_SAVE_Y = 10
+BUILD_BTN_LOAD_Y = 42
+
+# Text and Hitbox Sizes (Specific to each button)
+BUILD_BTN_TEXT_SIZE_SAVE = 30
+BUILD_BTN_HIT_SIZE_SAVE = (110, 25)
+
+BUILD_BTN_TEXT_SIZE_LOAD = 25
+BUILD_BTN_HIT_SIZE_LOAD = (110, 25)
+
+BUILD_BTN_TEXT_SIZE_ESCAPE = 25
+BUILD_BTN_HIT_SIZE_ESCAPE = (110, 25)

@@ -17,6 +17,28 @@ class TileManager:
         self.sprites = pygame.sprite.Group()
         self._load_and_scale(tile_mapping)
 
+    def get_tile_image(self, tile_id, opacity=255):
+        """
+        Retrieves a copy of the tile image, scaled and with optional opacity.
+        Returns a black surface if the tile_id is 0 (empty).
+        """
+        if tile_id == 0:
+            # Return a transparent surface for the empty tile preview
+            surf = pygame.Surface((config.TILE_SIZE, config.TILE_SIZE), pygame.SRCALPHA)
+            return surf
+
+        # Get the scaled, opaque image
+        img = self.tile_images.get(tile_id)
+        if img:
+            # Create a copy so we can safely modify its alpha without affecting the original
+            preview_img = img.copy() 
+            
+            # Set the desired transparency (alpha)
+            preview_img.set_alpha(opacity)
+            return preview_img
+            
+        # Fallback for unknown ID
+        return pygame.Surface((config.TILE_SIZE, config.TILE_SIZE), pygame.SRCALPHA)
 
 
 
