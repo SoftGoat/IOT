@@ -23,6 +23,46 @@ class SpawnConfigSlider:
         self.text_rect = pygame.Rect(x + TEXT_PADDING, y + TEXT_PADDING, width - 2*TEXT_PADDING, TEXT_BOX_HEIGHT - 2*TEXT_PADDING)
         self.text_input = str(initial_value)
         self.is_text_active = False # Text box focus
+
+        # 1. Adjust text box width to fit arrows
+        ARROW_W = TEXT_BOX_HEIGHT - 2 * TEXT_PADDING 
+        text_w_new = width - 2 * TEXT_PADDING - 2 * ARROW_W
+        text_x_new = x + TEXT_PADDING + ARROW_W
+        
+        self.text_rect = pygame.Rect(text_x_new, y + TEXT_PADDING, text_w_new, TEXT_BOX_HEIGHT - 2*TEXT_PADDING)
+        self.text_input = str(initial_value)
+        self.is_text_active = False
+        
+        # 2. Define Arrow Button Rects
+        self.left_arrow_rect = pygame.Rect(x + TEXT_PADDING, y + TEXT_PADDING, ARROW_W, TEXT_BOX_HEIGHT - 2*TEXT_PADDING)
+        self.right_arrow_rect = pygame.Rect(x + width - TEXT_PADDING - ARROW_W, y + TEXT_PADDING, ARROW_W, TEXT_BOX_HEIGHT - 2*TEXT_PADDING)
+
+        # Button State Tracking ---
+        self.is_left_pressed = False
+        self.is_right_pressed = False
+        
+        # 3. Load and scale the Arrow Images
+        try:
+            img_left = pygame.image.load(config.ARROW_LEFT).convert_alpha()
+            img_right = pygame.image.load(config.ARROW_RIGHT).convert_alpha()
+            img_left_p = pygame.image.load(config.ARROW_LEFT_PRESSED).convert_alpha()
+            img_right_p = pygame.image.load(config.ARROW_RIGHT_PRESSED).convert_alpha()
+            
+            size = self.left_arrow_rect.height
+            
+            # --- ASSIGN NORMAL IMAGES HERE ---
+            self.left_arrow_image = pygame.transform.scale(img_left, (size, size))
+            self.right_arrow_image = pygame.transform.scale(img_right, (size, size))
+            
+            self.left_arrow_image_pressed = pygame.transform.scale(img_left_p, (size, size))
+            self.right_arrow_image_pressed = pygame.transform.scale(img_right_p, (size, size))
+
+        except pygame.error as e:
+            print(f"ERROR loading arrow image (or pressed image): {e}")
+            # If loading fails, all four attributes are safely set to None
+            self.left_arrow_image = self.left_arrow_image_pressed = None 
+            self.right_arrow_image = self.right_arrow_image_pressed = None 
+
         
         # --- Slider Setup (Bottom Section) ---
         SLIDER_Y = y + TEXT_BOX_HEIGHT + TEXT_PADDING
@@ -110,6 +150,26 @@ class SpawnConfigSlider:
                     self.text_input += event.unicode
             return # Block slider interaction if typing
 
+        # --- Arrow Button Logic ---
+        # MOUSEBUTTONDOWN (Set pressed state and change value)
+        if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            if self.left_arrow_rect.collidepoint(event.pos):
+                self.is_left_pressed = True
+                new_val = self.current_value - 1
+                self.set_value(new_val)
+                return
+                
+            if self.right_arrow_rect.collidepoint(event.pos):
+                self.is_right_pressed = True
+                new_val = self.current_value + 1
+                self.set_value(new_val)
+                return
+                
+        # MOUSEBUTTONUP (Release pressed state)
+        if event.type == pygame.MOUSEBUTTONUP and event.button == 1:
+            self.is_left_pressed = False
+            self.is_right_pressed = False
+
         # --- Slider Dragging Logic ---
         # ... (The rest of the logic remains the same) ...
         if event.type == pygame.MOUSEBUTTONDOWN:
@@ -163,3 +223,22 @@ class SpawnConfigSlider:
         color = config.WHITE if not self.is_dragging else config.BLACK
         pygame.draw.circle(screen, config.BLACK, self.slider_handle_pos, self.slider_handle_radius)
         pygame.draw.circle(screen, color, self.slider_handle_pos, self.slider_handle_radius - 2)
+
+
+        # Left Button
+        pygame.draw.rect(screen, config.GRAY, self.left_arrow_rect)
+        pygame.draw.rect(screen, config.BLACK, self.left_arrow_rect, 1)
+
+        if self.is_left_pressed and self.left_arrow_image_pressed:
+            screen.blit(self.left_arrow_image_pressed, self.left_arrow_rect.topleft)
+        elif self.left_arrow_image:
+            screen.blit(self.left_arrow_image, self.left_arrow_rect.topleft)
+        
+        # Right Button
+        pygame.draw.rect(screen, config.GRAY, self.right_arrow_rect)
+        pygame.draw.rect(screen, config.BLACK, self.right_arrow_rect, 1)
+        
+        if self.is_right_pressed and self.right_arrow_image_pressed:
+            screen.blit(self.right_arrow_image_pressed, self.right_arrow_rect.topleft)
+        elif self.right_arrow_image:
+            screen.blit(self.right_arrow_image, self.right_arrow_rect.topleft)

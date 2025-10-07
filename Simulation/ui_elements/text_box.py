@@ -19,9 +19,13 @@ class TextBox:
         self.is_active = False # Controls keyboard input focus
 
 
-    def update(self, new_text):
-        """Updates the text value."""
-        self.value = new_text
+    def update(self):
+        """No complex update logic needed here yet."""
+        pass
+
+    def set_value(self, new_value):
+        """Updates the displayed value."""
+        self.value = str(new_value)
 
     def draw(self, screen):
         """Draws the bubble and the passenger count text."""
@@ -32,7 +36,6 @@ class TextBox:
         # 2. Draw the count text
         display_text = self.value if self.value else "0"
         color = config.BLACK
-
         text_surf = self.font.render(str(display_text), True, color)
 
         # Center the text within the rect

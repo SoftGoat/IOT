@@ -74,7 +74,10 @@ BUTTON_IN_GAME_HOVER = "assets/buttons/button_in_game_hover.png"
 TITLE_BANNER_PATH = "assets/title_banner.png" 
 PASSENGERS_ICON_PATH = "assets/passengers.png"
 X_ICON_PATH = "assets/X.png"
-
+ARROW_LEFT = "assets/buttons/arrow_left.png"
+ARROW_RIGHT = "assets/buttons/arrow_right.png"
+ARROW_LEFT_PRESSED = "assets/buttons/arrow_left_pressed.png"
+ARROW_RIGHT_PRESSED = "assets/buttons/arrow_right_pressed.png"
 
 # --- UI Sizing ---
 TITLE_BANNER_WIDTH = 800

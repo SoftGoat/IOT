@@ -93,6 +93,23 @@ class BuildState(State):
             for button in self.tile_buttons:
                 button.handle_event(event)
 
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1: # Left click
+                mouse_x, mouse_y = event.pos
+                col = mouse_x // config.TILE_SIZE
+                row = mouse_y // config.TILE_SIZE
+
+                # Check if click is on the grid area (not the control panel)
+                if mouse_x < config.PALETTE_PANEL_X:
+
+                    # Check if the selected tool is the platform modifier (ID 2 or 4)
+                    if self.selected_tile_id in [2, 4]:
+                        if self.structure_manager.try_modify_platform(row, col):
+                            # Modification was successful and only executed once per click.
+                            # Use the lockout timer to prevent the click from activating a dialog etc. 
+                            # immediately after the modification
+                            self.click_lockout_timer = 5
+                            return # Event handled, stop processing
+
 
     def update(self):
         """Updates the game logic: timers, hovered position, and continuous painting."""
@@ -128,24 +145,23 @@ class BuildState(State):
             self.hovered_grid_pos = None
         
         # Painting logic (continuous mouse press)
+        if pygame.mouse.get_pressed()[0] and self.grid_data[row][col] == self.selected_tile_id:
+            return # Already painted with the same tile, skip
+            
         if self.hovered_grid_pos:
             row, col = self.hovered_grid_pos
             if pygame.mouse.get_pressed()[0]:
                 # LEFT CLICK: Delegate to structure manager first, then fall back to default
-                if self.selected_tile_id == 6:
+                if self.selected_tile_id == 6 :
                     self.structure_manager.try_place_structure(row, col)
-                elif self.structure_manager.try_modify_platform(row, col):
+                elif (self.selected_tile_id == 4 or self.selected_tile_id == 2) and self.structure_manager.try_modify_platform(row, col):
                     # Modification (2<->4) successful, nothing else to do
                     pass
-                else:
+                elif self.selected_tile_id != 4 and self.selected_tile_id != 2:
                     # Default painting behavior for regular tiles
                     self.paint_at(row, col, self.selected_tile_id)
 
 
-            elif pygame.mouse.get_pressed()[2]:
-                # RIGHT CLICK (Erase): Delegate to structure manager first, then fall back to default
-                if not self.structure_manager.try_delete_structure(row, col):
-                    self.erase_at(row, col)
 
     def draw(self, screen):
         """Draws all elements of the build screen."""
