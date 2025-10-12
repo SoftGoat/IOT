@@ -8,6 +8,8 @@ from ui_elements.editable_spawn_count import EditableSpawnCount
 from ui_elements.spawn_config_slider import SpawnConfigSlider
 from ui_elements.text_box import TextBox
 from .queue_manager import QueueManager
+import csv
+
 
 from game_states.state import State 
 from dialog import LoadDialog
@@ -28,7 +30,8 @@ class SimulationState(State):
         # --- Simulation Logic Data ---
         self.spawn_data = {}
         self.initial_spawn_data = {}
-        self.selected_stairs_pos = None 
+        self.selected_stairs_pos = None
+        self.stairs_description_text = ""
         self.active_dialog = None 
         self.click_lockout_timer = 0 
 
@@ -52,6 +55,8 @@ class SimulationState(State):
         slider_x = config.PALETTE_PANEL_X + 20
         slider_y = 150 
         slider_h = 100
+
+
 
         self.spawn_config_slider = SpawnConfigSlider(
             slider_x, slider_y, slider_w, slider_h, 
@@ -83,6 +88,26 @@ class SimulationState(State):
         )
 
 
+        # --- Iterations Text Box ---
+        export_btn_w, export_btn_h = 200, 50
+        export_btn_x = config.PALETTE_PANEL_X + (config.PALETTE_PANEL_WIDTH - export_btn_w) // 2
+        export_btn_y = 600  # Position below the other buttons
+
+
+        self.iterations_textbox = TextBox(
+        x = export_btn_x, 
+        y = export_btn_y,
+        text="100", 
+        length=export_btn_w,
+        height=export_btn_h,
+        text_color=config.BLACK,
+        bg_color=config.LIGHT_GRAY, 
+        outline_color=config.DARK_GRAY,
+        font=self.font_ui,
+        editable=True
+        )
+
+
     def handle_events(self, events):
         """Handles user input, prioritizing dialogs."""
         
@@ -98,6 +123,9 @@ class SimulationState(State):
         
         # Now, we iterate over the LIST 'events'
         for event in events: # event is now a SINGLE event object
+
+            # --- Handle the Iterations Text Box ---
+            self.iterations_textbox.handle_event(event)
             
             # --- Handle the Slider (using the SINGLE event) ---
             self.spawn_config_slider.handle_event(event) 
@@ -137,6 +165,9 @@ class SimulationState(State):
         # Update slider
         self.spawn_config_slider.update()
 
+        # Update iterations text box
+        self.iterations_textbox.update()
+
         # Update spawn counters
         for counter in self.spawn_counters:
             counter.update()
@@ -156,10 +187,7 @@ class SimulationState(State):
         # Draw action buttons (on the panel)
         for button in self.action_buttons:
             button.draw(screen)
-            
-        # Draw the Spawn Config Slider
-        self.spawn_config_slider.draw(screen)
-        
+                    
         # Draw spawn counters (above the tiles)
         for counter in self.spawn_counters:
             counter.draw(screen)
@@ -170,6 +198,15 @@ class SimulationState(State):
         # Draw queue counters
         for counter in self.queue_counters:
             counter.draw(screen)
+
+        # Draw the Spawn Config Slider
+        self.spawn_config_slider.draw(screen)
+
+        # Draw the description for the selected stairs (NEW)
+        self._draw_stairs_description(screen) 
+
+        # Draw the iterations text box
+        self.iterations_textbox.draw(screen)
         
         # Draw dialogs (LAST)
         if self.active_dialog:
@@ -296,8 +333,24 @@ class SimulationState(State):
             "RESET", self._reset_simulation_state, 
             config.BUTTON_IN_GAME, config.BUTTON_IN_GAME_HOVER, text_size=28, hit_size=(75, 40)
         )
-        
-        return [self.load_button, self.run_button, self.reset_button]
+
+
+        # 4. Create the "Run & Export" button with consistent styling and positioning
+        # 4. Run & Export Button (styled and positioned consistently)
+        run_export_btn_w = 200
+        run_export_btn_h = 50
+        run_export_btn_x = config.PALETTE_PANEL_X + (config.PALETTE_PANEL_WIDTH - run_export_btn_w) // 2
+        run_export_btn_y = 400  # Position below the iterations text box
+
+        self.run_export_button = Button(
+            run_export_btn_x, run_export_btn_y, run_export_btn_w, run_export_btn_h,
+            "Run & Export",
+            self.start_simulation_and_export,
+            config.BUTTON_IN_GAME, config.BUTTON_IN_GAME_HOVER,
+            text_size=24, hit_size=(run_export_btn_w, run_export_btn_h)
+        )
+
+        return [self.load_button, self.run_button, self.reset_button, self.run_export_button]
 
         
     def _update_spawn_data(self, r, c, new_count):
@@ -359,7 +412,7 @@ class SimulationState(State):
 
                     # Calculate the top-left position for the bubble 
                     # X: Tile center (c*size + size/2) - half bubble width
-                    x_pos = c * tile_size + (tile_size // 2) - half_bubble
+                    x_pos = c * tile_size + (tile_size // 2) - half_bubble - 10
                     # Y: Tile center (r*size + size/2) - full bubble height
                     y_pos = r * tile_size + (tile_size // 2) - bubble_size
 
@@ -368,6 +421,7 @@ class SimulationState(State):
                     counter = TextBox(
                         x_pos, y_pos, 
                         display_text, # Pass the fractional string
+                        length=bubble_size+20
                     )
 
                     # 3. Store the objects and references
@@ -436,6 +490,15 @@ class SimulationState(State):
             
         # Check if the clicked tile is a stairs tile (ID 5)
         if self.grid_data[row][col] == 5:
+
+            # --- Update Description Text ---
+            self.selected_stairs_pos = (row, col)
+            self.stairs_description_text = (     
+                "Value represents the total number of passengers to spawn from this point."
+            )
+
+            print(f"Stairs selected at ({row}, {col}). ACTIVATING SLIDER.")
+            self.spawn_config_slider.is_active = True
             # Select this stairs tile
             self.selected_stairs_pos = (row, col)
             print(f"Stairs selected at ({row}, {col}). ACTIVATING SLIDER.")
@@ -456,6 +519,7 @@ class SimulationState(State):
             # Deselect if they click elsewhere on the grid
             self.selected_stairs_pos = None
             self.spawn_config_slider.is_active = False
+            self.stairs_description_text = "" # NEW: Clear text on deselect
 
         if (row, col) in self.counter_map:
             # SUCCESS
@@ -519,7 +583,9 @@ class SimulationState(State):
 
         # 2. Execute distribution and get the dictionary needed for zeroing spawn_data
         # This will distribute the now-restored passenger count randomly into the queues.
-        zeroed_data_map = self.queue_manager.distribute_passengers_and_get_zeros()
+        zeroed_data_map = self.queue_manager.distribute_passengers_utility_based()
+
+
         
         # 3. Reset internal spawn_data using the zeroed map
         # This empties the spawn source for the next run.
@@ -528,6 +594,7 @@ class SimulationState(State):
         # 4. Update Visuals
         self._update_queue_visuals()
         self._update_all_spawn_visuals()
+
     def _simulation_step(self):
         """Contains all logic that advances the simulation by one frame/instance."""
         
@@ -551,15 +618,15 @@ class SimulationState(State):
     def _reset_simulation_state(self):
         """
         Restores the simulation progress to its initial state (before RUN was pressed).
-        IMPORTANT: This retains the user-set values in self.spawn_data.
+        Sets the remaining spawn count (numerator) equal to the total set count (denominator).
         """
-        print("Simulation State Reset (User Spawn Data Retained).")
+        print("Simulation State Reset (Restoring Spawn Pool).")
         
-        # 1. RETAIN USER-SET SPAWN DATA (No change to self.spawn_data needed here)
-        # We rely on self.spawn_data still holding the last values set by the slider.
+        # 1. RESTORE SPAWN DATA: Set the remaining count (numerator) equal to the initial count (denominator)
+        for pos_key, initial_count in self.initial_spawn_data.items():
+            self.spawn_data[pos_key] = initial_count 
 
-        # 2. Update Spawn Visual Counters
-        # They must reflect the non-zero, user-set values in self.spawn_data.
+        # 2. Update Spawn Visual Counters (Now reflects [Initial]/[Initial])
         self._update_all_spawn_visuals() 
 
         # 3. Clear all Queues in the QueueManager
@@ -571,6 +638,7 @@ class SimulationState(State):
         # 5. Deselect any stairs tile and deactivate the slider
         self.selected_stairs_pos = None
         self.spawn_config_slider.is_active = False
+        self.stairs_description_text = "" # Clear description text
 
 
 
@@ -589,3 +657,97 @@ class SimulationState(State):
                 # Format the new string: [Numerator]/[Denominator]
                 display_text = f"{current_count}/{initial_count}"
                 specific_counter.set_value(display_text)
+
+    # In game_states/simulation_state.py, add this new method:
+
+    def _draw_stairs_description(self, screen):
+        """Draws the description text for the currently selected stairs tile, with wrapping."""
+        if not self.stairs_description_text:
+            return
+
+        text_to_display = self.stairs_description_text
+        words = text_to_display.split(' ')
+        lines = []
+        current_line = ''
+        
+        # Define the area for wrapping (the control panel width minus padding)
+        padding = 10
+        max_line_width = config.PALETTE_PANEL_WIDTH - 2 * padding
+
+        # Define the starting Y position (e.g., just above the slider, which starts at y=150)
+        text_y = 300 
+        text_x = config.PALETTE_PANEL_X + padding
+        
+        # --- Text Wrapping Logic ---
+        for word in words:
+            test_line = f"{current_line} {word}".strip()
+            # Use the UI font defined in __init__ (self.font_ui)
+            test_surface = self.font_ui.render(test_line, True, config.BLACK)
+            
+            if test_surface.get_width() > max_line_width and current_line:
+                lines.append(current_line)
+                current_line = word
+            else:
+                current_line = test_line
+        lines.append(current_line)
+        
+        # --- Drawing Logic ---
+        for line in lines:
+            text_surface = self.font_ui.render(line, True, config.WHITE)
+            screen.blit(text_surface, (text_x, text_y))
+            text_y += config.FONT_SIZE_UI + 2 # Add a small gap between lines
+
+
+
+    def get_iteration_count(self):
+        """Safely retrieves and validates the iteration count from the text box."""
+        try:
+            # Assuming self.iterations_textbox is your TextBox instance
+            count = int(self.iterations_textbox.get_text())
+            return max(1, count) # Ensure at least 1 iteration
+        except ValueError:
+            print("Invalid iteration count. Defaulting to 1.")
+            # Optionally, reset the text box to a valid number
+            return 1
+
+    def start_simulation_and_export(self):
+        """Initiates multiple simulation runs and exports data to CSV."""
+
+        # 1. Get the desired number of runs
+        num_iterations = self.get_iteration_count()
+
+        # 2. Setup the CSV file
+        output_dir = "exports"
+        if not os.path.exists(output_dir):
+            os.makedirs(output_dir)
+
+        csv_filename = os.path.join(output_dir, "simulation_results.csv")
+
+        # 3. Create and open the CSV file (Ignoring content for now, as requested)
+        with open(csv_filename, 'w', newline='') as csvfile:
+            writer = csv.writer(csvfile)
+
+            # Header Row (Placeholder)
+            writer.writerow(['Run Index', 'Placeholder Result 1', 'Placeholder Result 2'])
+
+            print(f"Starting {num_iterations} simulation runs...")
+
+            for i in range(1, num_iterations + 1):
+
+                # Placeholder for running the simulation once
+                # In a real setup, this would call a method that resets and runs the simulation
+                # E.g., results = self.run_single_simulation()
+
+                # --- For now, just write a dummy row ---
+                dummy_result1 = 0
+                dummy_result2 = 0
+                writer.writerow([i, dummy_result1, dummy_result2])
+
+                # Optional: Print progress
+                if i % 10 == 0 or i == num_iterations:
+                    print(f"  Completed Run {i}/{num_iterations}")
+
+        print(f"All runs completed. Results saved to {csv_filename}")
+
+        # Optional: Display a confirmation message in your game UI (using dialog.py)
+        # self.show_dialog(f"Export Complete: {csv_filename}") 

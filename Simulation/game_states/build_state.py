@@ -68,8 +68,6 @@ class BuildState(State):
         self.action_buttons = [self.save_button, self.load_button, self.escape_button]
 
 
-
-
     def handle_events(self, events):
         """Handles key presses and dispatches events to buttons/dialogs."""
         
@@ -92,6 +90,35 @@ class BuildState(State):
             # Dispatch event to Palette Buttons
             for button in self.tile_buttons:
                 button.handle_event(event)
+            
+            # --- NEW LOGIC: Right Click (Button 3) for Delete/Erase ---
+            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 3: # Right click
+                mouse_x, mouse_y = event.pos
+                col = mouse_x // config.TILE_SIZE
+                row = mouse_y // config.TILE_SIZE
+
+                # Check if click is on the grid area (not the control panel)
+                if mouse_x < config.PALETTE_PANEL_X:
+                    current_tile_id = self.grid_data[row][col]
+                    
+                    # Only attempt to delete if the tile is NOT empty
+                    if current_tile_id != 0:
+                        is_managed_tile = current_tile_id in [2, 3, 4, 6] # Added 6 for track tile
+
+                        # 1. Try to delete structure first (if it's a managed tile)
+                        # We use try_delete_structure as it safely handles all connected parts (like tracks)
+                        if is_managed_tile and self.structure_manager.try_delete_structure(row, col):
+                            # Structure deletion successful (structure manager handles painting 0)
+                            self.click_lockout_timer = 5
+                            return
+                        
+                        # 2. Fallback: Erase any regular, non-empty tile 
+                        # This covers tiles not managed by the TrackStructureManager (e.g., ID 1: Floor)
+                        else:
+                            self.paint_at(row, col, 0)
+                            self.click_lockout_timer = 5
+                            return
+            # --- END NEW RIGHT-CLICK LOGIC ---
 
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1: # Left click
                 mouse_x, mouse_y = event.pos
@@ -145,12 +172,16 @@ class BuildState(State):
             self.hovered_grid_pos = None
         
         # Painting logic (continuous mouse press)
-        if pygame.mouse.get_pressed()[0] and self.grid_data[row][col] == self.selected_tile_id:
-            return # Already painted with the same tile, skip
-            
         if self.hovered_grid_pos:
             row, col = self.hovered_grid_pos
+            
+            # Continuous painting is only done on LEFT CLICK (get_pressed()[0])
             if pygame.mouse.get_pressed()[0]:
+                
+                # If the tile is already what we are painting, skip.
+                if self.grid_data[row][col] == self.selected_tile_id:
+                    return 
+                    
                 # LEFT CLICK: Delegate to structure manager first, then fall back to default
                 if self.selected_tile_id == 6 :
                     self.structure_manager.try_place_structure(row, col)
@@ -159,8 +190,9 @@ class BuildState(State):
                     pass
                 elif self.selected_tile_id != 4 and self.selected_tile_id != 2:
                     # Default painting behavior for regular tiles
-                    self.paint_at(row, col, self.selected_tile_id)
-
+                    # Only paint if the tile is currently empty (ID 0)
+                    if self.grid_data[row][col] == 0:
+                        self.paint_at(row, col, self.selected_tile_id)
 
 
     def draw(self, screen):
@@ -200,21 +232,23 @@ class BuildState(State):
         # We rely on the structure manager's delete function for safe structure deletion.
         
         old = self.grid_data[row][col]
-        # Only allow painting if it's not a managed tile, or if we are painting ID 0.
-        if (old == tile_id): return
-        if (old in [2, 3, 4] and self.structure_manager.try_delete_structure(row, col)):
-            # We just successfully deleted a structure, so we paint the new tile on the now empty space
-            old = 0
-            if tile_id == 0: return # Already erased, nothing more to do
         
+        # If the tile ID is the same, do nothing
+        if (old == tile_id): return
+        
+        # This function is usually called from update() or erase_at()
+        # If we are trying to paint over a managed tile (2, 3, 4, 6), we should NOT do it 
+        # via paint_at unless tile_id is 0 (erase). 
+        # NOTE: The calling functions (handle_events) should already ensure structures are deleted first.
+        
+        # Simplified logic: just paint the tile and update the visual
         self.grid_data[row][col] = tile_id
         self.tile_manager.update_tile(old, tile_id, col, row)
 
 
     def erase_at(self, row, col):
         """Paints an empty tile (ID 0)."""
-        # If this is called, it means the structure manager already failed to delete it.
-        # So we just paint ID 0 safely.
+        # This helper is now primarily called by the right-click logic for non-managed tiles.
         self.paint_at(row, col, 0)
         
     def load_station_from_name(self, layout_name):
@@ -314,11 +348,9 @@ class BuildState(State):
                 preview_col = 0
                 
                 # Check if the user clicked the platform row, and adjust to the track row
-                # **CHANGE 1: Update function name**
                 if preview_row > 0 and not self.structure_manager._is_valid_area(preview_row, preview_col):
                     preview_row -= 1
                 
-                # **CHANGE 2: Update function name**
                 if self.structure_manager._is_valid_area(preview_row, preview_col):
                     # Valid placement preview color (Blue/Green)
                     structure_preview_surf.fill((0, 100, 255, 100)) 

@@ -12,6 +12,9 @@ WHITE = (255, 255, 255)
 GRAY = (128, 128, 128)
 LIGHT_GRAY = (200, 200, 200)
 GRID_LINE_COLOR = (40, 40, 40)
+RED = (255,160,122)
+DARK_GRAY = (100, 100, 100)
+HIGHLIGHT_COLOR = (255, 255, 0) # Bright Yellow (used for active text box outline)
 
 # --- Fonts ---
 # Using None will load the default pygame font.
