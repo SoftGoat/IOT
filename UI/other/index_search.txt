@@ -1,0 +1,193 @@
+<!-- public/index.html -->
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Train seats monitor — demo</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;background:#f7f7f7;padding:2vh}
+    h1{text-align:center}
+    #search{display:flex;justify-content:center;gap:10px;margin:20px}
+    .train-container {display: flex;  gap:1%;justify-content:center;flex-direction: column; flex-wrap:nowrap;margin-top:2vh}
+    #train{display:flex;gap:1%;justify-content:center;flex-direction: row; flex-wrap:nowrap;margin-top:2vh; margin-bottom:2vh}
+    .car{height: 40vh;flex: 1;padding:2vw;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;color:#fff;font-weight:700}
+    .num{font-size:16px;margin-bottom:8px;color:black} 
+    .seats{flex-direction:column;width: 100%; display:flex;gap:10px;border-radius:8px;margin-top:4px;box-shadow:0 2px 6px rgba(0,0,0,0.12);background:#eee; padding:5%;aspect-ratio: 2;}
+    .seats-row {min-height: 0; display: flex; flex: 1; gap: 5px}
+    .seat{min-height: 2vh;flex: 1; border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#000}
+    .legend{gap:14px; margin-top: 10vh; justify-content: center; align-items: center}
+    .dot{width:16px;height:16px;display:inline-block;border-radius:3px;margin-right: 6px;}
+    .note{margin-top:10px;text-align:center;font-size:13px;color:#333}
+    .middle-gap {margin-bottom: 20px;}
+  </style>
+</head>
+<body>
+  <h1>Train monitor</h1>
+
+  <div id="search">
+    <input type="number" id="trainInput" placeholder="Train number" />
+    <button id="checkBtn">Check</button>
+  </div>
+  <div class="train-container">
+    <div id="train"></div>
+
+    <div class="legend" style="display:none" id="legend">
+      <span><span class="dot" style="background:green"></span>Vacant</span>
+      <span><span class="dot" style="background:red"></span>Occupied</span>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js';
+    import { getDatabase, ref, onValue, get } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCGbpMrhaH8YEkw_W9sejNX3DAPbGailI8",
+      authDomain: "iot2025-56325.firebaseapp.com",
+      databaseURL: "https://iot2025-56325-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "iot2025-56325",
+      storageBucket: "iot2025-56325.firebasestorage.app",
+      messagingSenderId: "606759241623",
+      appId: "1:606759241623:web:1335d0d444eb4d242b66d2"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const trainEl = document.getElementById('train');
+    const legendEl = document.getElementById('legend');
+    const checkBtn = document.getElementById('checkBtn');
+    const trainInput = document.getElementById('trainInput');
+
+    const REAL_CAR_ID = '556767';         
+    const REAL_SEATS = [1, 2];      
+    const TOTAL_SEATS_PER_ROW = 8;  
+    const TOTAL_ROWS_PER_CAR = 4;
+    const FAKE_UPDATE_MS = 5000;  
+
+    let latestCarIds = null;
+    let latestCarsData = null;
+    let unsub = null;
+
+    
+    function randDist() { return Math.floor(Math.random() * 201); }
+
+    
+    function buildSeatsForCar(carId, carData) {
+      const seats = {}; 
+      const sourceSeats = (carData && carData.seats) ? carData.seats : {};
+      for (let s = 0; s <= TOTAL_SEATS_PER_ROW * TOTAL_ROWS_PER_CAR; s++) {
+        if (String(carId) === String(REAL_CAR_ID) && REAL_SEATS.includes(s)) { 
+          const real = sourceSeats[s] && (sourceSeats[s].sensorDistance !== undefined)
+                       ? sourceSeats[s].sensorDistance
+                       : 0;
+          seats[s] = { sensorDistance: real, isFake: false };
+        } else {
+          if (sourceSeats[s] && sourceSeats[s].sensorDistance !== undefined && sourceSeats[s].isFake) {
+            seats[s] = { sensorDistance: sourceSeats[s].sensorDistance, isFake: true };
+          } else {
+            seats[s] = { sensorDistance: randDist(), isFake: true };
+          }
+        }
+      }
+      return seats;
+    }
+
+    
+    function render(carIds, carsData) {
+      trainEl.innerHTML = '';
+
+      carIds.forEach((carId, index) => {
+        const carData = carsData[carId];
+        const seats = buildSeatsForCar(carId, carData);
+
+        const carDiv = document.createElement('div');
+        carDiv.className = 'car';
+
+        const seatsHtml = [];
+        seatsHtml.push(`<div class="num">Car ${index + 1}</div>`);
+        seatsHtml.push(`<div class="seats">`);
+
+        for (let row = 0; row < TOTAL_ROWS_PER_CAR; row++) {
+          const middle =
+            row === Math.floor(TOTAL_ROWS_PER_CAR / 2) - 1 ? ' middle-gap' : '';
+          seatsHtml.push(`<div class="seats-row${middle}">`);
+
+          const startSeat = row * TOTAL_SEATS_PER_ROW + 1;
+          const endSeat = startSeat + TOTAL_SEATS_PER_ROW;
+
+          for (let s = startSeat; s < endSeat; s++) {
+            const item = seats[s];
+            const dist = item.sensorDistance ?? 0;
+            let color = 'gray';
+            if (dist < 70) color = 'red';
+            else color = 'green';
+            const border = item.isFake
+              ? '2px dashed rgba(0,0,0,0.25)'
+              : '2px solid transparent';
+            seatsHtml.push(
+              `<div class="seat" style="background:${color};border:${border}"></div>`
+            );
+          }
+
+          seatsHtml.push(`</div>`);
+        }
+
+        seatsHtml.push(`</div>`);
+        carDiv.innerHTML = seatsHtml.join('');
+        trainEl.appendChild(carDiv);
+      });
+    }
+
+    function refreshFakeLocally() {
+      if (!latestCarIds || !latestCarsData) return;
+        render(latestCarIds, latestCarsData);
+      //console.log('refreshFakeLocally called at', new Date().toLocaleTimeString());
+    }
+    
+    const intervalId = setInterval(refreshFakeLocally, FAKE_UPDATE_MS);
+    
+    //setTimeout(refreshFakeLocally, 500);
+
+    checkBtn.addEventListener('click', () => {
+      const trainNum = trainInput.value.trim();
+      if (!trainNum) {
+        alert("Please enter train number");
+        return;
+      }
+      trainEl.innerHTML = 'Loading...';
+      legendEl.style.display = 'none';
+      if (typeof unsub === 'function') unsub();
+      const carsRef = ref(db, `trains/${trainNum}/cars`);
+      unsub = onValue(
+        carsRef,
+        async (snapshot) => {
+          const carIds = snapshot.val();
+          if (!carIds || carIds.length === 0) {
+            trainEl.innerHTML = '<i>No data or no such train</i>';
+            latestCarIds = null;
+      latestCarsData = null;
+            return;
+          }
+          const carsData = {};
+          for (const carId of carIds) {
+            const carSnap = await get(ref(db, `cars/${carId}`));
+            carsData[carId] = carSnap.val();
+          }
+          latestCarIds = carIds;
+          latestCarsData = carsData;
+          render(carIds, carsData);
+          legendEl.style.display = 'flex';
+        },
+        (err) => {
+          console.error('RTDB error', err);
+          trainEl.innerHTML = '<i>Error</i>';
+        }
+      );
+    });
+
+    window.addEventListener('beforeunload', ()=> clearInterval(intervalId));
+  </script>
+</body>
+</html>

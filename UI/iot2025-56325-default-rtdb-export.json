@@ -1,0 +1,645 @@
+{ 
+  "trains": 
+  { 
+    "1": 
+    {
+      "cars": 
+      [
+        534678, 
+        556767, 
+        689099
+      ]
+    }, 
+    "2": 
+    {
+      "cars": 
+      [
+        123456, 
+        234567, 
+        345678, 
+        456789
+      ]
+    }, 
+    "3": 
+    {
+      "cars": 
+      [
+        103456, 
+        204567, 
+        305678, 
+        406789, 
+        145567
+      ]
+    } 
+  }, 
+  "cars": 
+  { 
+    "534678": 
+    {
+       "seats": 
+       {
+         "1": { "Occupied": true }, 
+         "2": { "Occupied": true },
+         "3": { "Occupied": true }, 
+         "4": { "Occupied": true },
+         "5": { "Occupied": true }, 
+         "6": { "Occupied": true },
+         "7": { "Occupied": true }, 
+         "8": { "Occupied": true },
+         "9": { "Occupied": true }, 
+         "10": { "Occupied": true },
+         "11": { "Occupied": true }, 
+         "12": { "Occupied": true },
+         "13": { "Occupied": true }, 
+         "14": { "Occupied": true },
+         "15": { "Occupied": true }, 
+         "17": { "Occupied": false }, 
+         "16": { "Occupied": false },
+         "18": { "Occupied": false }, 
+         "19": { "Occupied": false }, 
+         "20": { "Occupied": false },
+         "21": { "Occupied": false }, 
+         "22": { "Occupied": false },
+         "23": { "Occupied": false }, 
+         "24": { "Occupied": false },
+         "25": { "Occupied": false }, 
+         "26": { "Occupied": false },
+         "27": { "Occupied": false }, 
+         "28": { "Occupied": false },
+         "29": { "Occupied": false }, 
+         "30": { "Occupied": false },
+         "31": { "Occupied": false }, 
+         "32": { "Occupied": false }
+       } 
+    }, 
+    "556767": 
+    { 
+      "seats": 
+      { 
+         "1": { "Occupied": false }, 
+         "2": { "Occupied": false },
+         "3": { "Occupied": false }, 
+         "4": { "Occupied": false },
+         "5": { "Occupied": false }, 
+         "6": { "Occupied": false },
+         "7": { "Occupied": false }, 
+         "8": { "Occupied": false },
+         "9": { "Occupied": false }, 
+         "10": { "Occupied": false },
+         "11": { "Occupied": false }, 
+         "12": { "Occupied": false },
+         "13": { "Occupied": false }, 
+         "14": { "Occupied": true },
+         "15": { "Occupied": true }, 
+         "16": { "Occupied": true },
+         "17": { "Occupied": true }, 
+         "18": { "Occupied": true }, 
+         "19": { "Occupied": true }, 
+         "20": { "Occupied": true },
+         "21": { "Occupied": false }, 
+         "22": { "Occupied": true },
+         "23": { "Occupied": true }, 
+         "24": { "Occupied": true },
+         "25": { "Occupied": true }, 
+         "26": { "Occupied": false },
+         "27": { "Occupied": true }, 
+         "28": { "Occupied": false },
+         "29": { "Occupied": true }, 
+         "30": { "Occupied": true },
+         "31": { "Occupied": false }, 
+         "32": { "Occupied": false }
+        }
+    }, 
+    "689099": 
+    { 
+      "seats": 
+      {          
+         "1": { "Occupied": false }, 
+         "2": { "Occupied": false },
+         "3": { "Occupied": false }, 
+         "4": { "Occupied": false },
+         "5": { "Occupied": false }, 
+         "6": { "Occupied": true },
+         "7": { "Occupied": true }, 
+         "8": { "Occupied": true },
+         "9": { "Occupied": false }, 
+         "10": { "Occupied": false },
+         "11": { "Occupied": false }, 
+         "12": { "Occupied": false },
+         "13": { "Occupied": true}, 
+         "14": { "Occupied": false },
+         "15": { "Occupied": true }, 
+         "16": { "Occupied": true },
+         "17": { "Occupied": false }, 
+         "18": { "Occupied": true }, 
+         "19": { "Occupied": true }, 
+         "20": { "Occupied": false },
+         "21": { "Occupied": true }, 
+         "22": { "Occupied": false },
+         "23": { "Occupied": false }, 
+         "24": { "Occupied": true },
+         "25": { "Occupied": false }, 
+         "26": { "Occupied": true },
+         "27": { "Occupied": true }, 
+         "28": { "Occupied": true },
+         "29": { "Occupied": false }, 
+         "30": { "Occupied": false },
+         "31": { "Occupied": false }, 
+         "32": { "Occupied": false } 
+         } 
+        }, 
+        "123456": 
+        { 
+        "seats": 
+        { 
+        "1": { "Occupied": false }, 
+        "2": { "Occupied": false },
+        "3": { "Occupied": false }, 
+        "4": { "Occupied": true },
+        "5": { "Occupied": true }, 
+        "6": { "Occupied": true },
+        "7": { "Occupied": true }, 
+        "8": { "Occupied": true },
+        "9": { "Occupied": false }, 
+        "10": { "Occupied": false },
+        "11": { "Occupied": false }, 
+        "12": { "Occupied": false },
+        "13": { "Occupied": true }, 
+        "14": { "Occupied": true },
+        "15": { "Occupied": true }, 
+        "16": { "Occupied": true },
+        "17": { "Occupied": false }, 
+        "18": { "Occupied": true }, 
+        "19": { "Occupied": true }, 
+        "20": { "Occupied": false },
+        "21": { "Occupied": false }, 
+        "22": { "Occupied": true },
+        "23": { "Occupied": true }, 
+        "24": { "Occupied": true },
+        "25": { "Occupied": true }, 
+        "26": { "Occupied": false },
+        "27": { "Occupied": true }, 
+        "28": { "Occupied": false },
+        "29": { "Occupied": true }, 
+        "30": { "Occupied": true },
+        "31": { "Occupied": false }, 
+        "32": { "Occupied": false } 
+        } 
+        }, 
+        "234567": 
+        { 
+        "seats": 
+        {          "1": { "Occupied": false }, 
+        "2": { "Occupied": false },
+        "3": { "Occupied": true }, 
+        "4": { "Occupied": false },
+        "5": { "Occupied": false }, 
+        "6": { "Occupied": true },
+        "7": { "Occupied": true }, 
+        "8": { "Occupied": true },
+        "9": { "Occupied": true }, 
+        "10": { "Occupied": false },
+        "11": { "Occupied": false }, 
+        "12": { "Occupied": false },
+        "13": { "Occupied": false }, 
+        "14": { "Occupied": false },
+        "15": { "Occupied": true }, 
+        "16": { "Occupied": true },
+        "17": { "Occupied": true }, 
+        "18": { "Occupied": false }, 
+        "19": { "Occupied": true }, 
+        "20": { "Occupied": false },
+        "21": { "Occupied": true }, 
+        "22": { "Occupied": false },
+        "23": { "Occupied": false }, 
+        "24": { "Occupied": false },
+        "25": { "Occupied": false }, 
+        "26": { "Occupied": true },
+        "27": { "Occupied": true }, 
+        "28": { "Occupied": true },
+        "29": { "Occupied": false }, 
+        "30": { "Occupied": false },
+        "31": { "Occupied": false }, 
+        "32": { "Occupied": false } 
+        } 
+        }, 
+        "345678": 
+        { 
+        "seats": 
+        {          
+          "1": { "Occupied": false }, 
+        "2": { "Occupied": false },
+        "3": { "Occupied": true }, 
+        "4": { "Occupied": true },
+        "5": { "Occupied": true }, 
+        "6": { "Occupied": true },
+        "7": { "Occupied": true }, 
+        "8": { "Occupied": false },
+        "9": { "Occupied": false }, 
+        "10": { "Occupied": true },
+        "11": { "Occupied": false }, 
+        "12": { "Occupied": false },
+        "13": { "Occupied": true }, 
+        "14": { "Occupied": true },
+        "15": { "Occupied": false }, 
+        "16": { "Occupied": true },
+        "17": { "Occupied": false }, 
+        "18": { "Occupied": true }, 
+        "19": { "Occupied": true }, 
+        "20": { "Occupied": true },
+        "21": { "Occupied": false }, 
+        "22": { "Occupied": true },
+        "23": { "Occupied": true }, 
+        "24": { "Occupied": true },
+        "25": { "Occupied": false }, 
+        "26": { "Occupied": false },
+        "27": { "Occupied": true }, 
+        "28": { "Occupied": false },
+        "29": { "Occupied": true }, 
+        "30": { "Occupied": true },
+        "31": { "Occupied": false }, 
+        "32": { "Occupied": false } 
+        } 
+        }, 
+        "456789": 
+        { 
+        "seats": 
+        { 
+                    "1": { "Occupied": false }, 
+        "2": { "Occupied": false },
+        "3": { "Occupied": true }, 
+        "4": { "Occupied": false },
+        "5": { "Occupied": false }, 
+        "6": { "Occupied": true },
+        "7": { "Occupied": true }, 
+        "8": { "Occupied": true },
+        "9": { "Occupied": true }, 
+        "10": { "Occupied": false },
+        "11": { "Occupied": false }, 
+        "12": { "Occupied": true},
+        "13": { "Occupied": true }, 
+        "14": { "Occupied": false },
+        "15": { "Occupied": true }, 
+        "16": { "Occupied": false },
+        "17": { "Occupied": true }, 
+        "18": { "Occupied": false }, 
+        "19": { "Occupied": false }, 
+        "20": { "Occupied": false },
+        "21": { "Occupied": true }, 
+        "22": { "Occupied": false },
+        "23": { "Occupied": false }, 
+        "24": { "Occupied": false },
+        "25": { "Occupied": false }, 
+        "26": { "Occupied": true },
+        "27": { "Occupied": true }, 
+        "28": { "Occupied": true },
+        "29": { "Occupied": false }, 
+        "30": { "Occupied": false },
+        "31": { "Occupied": false }, 
+        "32": { "Occupied": false } 
+        } 
+        }, 
+        "103456": 
+        { 
+        "seats": 
+        { 
+        "1": { "Occupied": false }, 
+        "2": { "Occupied": false },
+        "3": { "Occupied": true }, 
+        "4": { "Occupied": true },
+        "5": { "Occupied": true }, 
+        "6": { "Occupied": true },
+        "7": { "Occupied": true }, 
+        "8": { "Occupied": false },
+        "9": { "Occupied": true }, 
+        "10": { "Occupied": true },
+        "11": { "Occupied": false }, 
+        "12": { "Occupied": false },
+        "13": { "Occupied": true }, 
+        "14": { "Occupied": true },
+        "15": { "Occupied": false }, 
+        "16": { "Occupied": true },
+        "17": { "Occupied": false }, 
+        "18": { "Occupied": true }, 
+        "19": { "Occupied": true }, 
+        "20": { "Occupied": true },
+        "21": { "Occupied": true }, 
+        "22": { "Occupied": true },
+        "23": { "Occupied": false }, 
+        "24": { "Occupied": true },
+        "25": { "Occupied": false }, 
+        "26": { "Occupied": false },
+        "27": { "Occupied": false }, 
+        "28": { "Occupied": true },
+        "29": { "Occupied": true }, 
+        "30": { "Occupied": true },
+        "31": { "Occupied": false }, 
+        "32": { "Occupied": false } 
+        } 
+        }, 
+        "204567": 
+        { 
+        "seats": 
+        { 
+        "1": { "Occupied": false }, 
+        "2": { "Occupied": false },
+        "3": { "Occupied": false }, 
+        "4": { "Occupied": false },
+        "5": { "Occupied": false }, 
+        "6": { "Occupied": true },
+        "7": { "Occupied": true }, 
+        "8": { "Occupied": true },
+        "9": { "Occupied": false }, 
+        "10": { "Occupied": false },
+        "11": { "Occupied": false }, 
+        "12": { "Occupied": false },
+        "13": { "Occupied": false }, 
+        "14": { "Occupied": false },
+        "15": { "Occupied": true }, 
+        "16": { "Occupied": true },
+        "17": { "Occupied": true }, 
+        "18": { "Occupied": true }, 
+        "19": { "Occupied": true }, 
+        "20": { "Occupied": false },
+        "21": { "Occupied": false }, 
+        "22": { "Occupied": true },
+        "23": { "Occupied": false }, 
+        "24": { "Occupied": true },
+        "25": { "Occupied": false }, 
+        "26": { "Occupied": true },
+        "27": { "Occupied": true }, 
+        "28": { "Occupied": true },
+        "29": { "Occupied": false }, 
+        "30": { "Occupied": false },
+        "31": { "Occupied": false }, 
+        "32": { "Occupied": false } 
+        } 
+        }, 
+        "305678": 
+        { 
+        "seats": 
+        {          "1": { "Occupied": false }, 
+        "2": { "Occupied": false },
+        "3": { "Occupied": true }, 
+        "4": { "Occupied": false },
+        "5": { "Occupied": false }, 
+        "6": { "Occupied": true },
+        "7": { "Occupied": true }, 
+        "8": { "Occupied": true },
+        "9": { "Occupied": true }, 
+        "10": { "Occupied": false },
+        "11": { "Occupied": false }, 
+        "12": { "Occupied": false },
+        "13": { "Occupied": false }, 
+        "14": { "Occupied": false },
+        "15": { "Occupied": true }, 
+        "16": { "Occupied": true },
+        "17": { "Occupied": true }, 
+        "18": { "Occupied": false }, 
+        "19": { "Occupied": false }, 
+        "20": { "Occupied": false },
+        "21": { "Occupied": true }, 
+        "22": { "Occupied": false },
+        "23": { "Occupied": false }, 
+        "24": { "Occupied": false },
+        "25": { "Occupied": false }, 
+        "26": { "Occupied": true },
+        "27": { "Occupied": true }, 
+        "28": { "Occupied": true },
+        "29": { "Occupied": false }, 
+        "30": { "Occupied": false },
+        "31": { "Occupied": false }, 
+        "32": { "Occupied": false } 
+        } 
+        }, 
+        "406789": 
+        { "seats": 
+        {          "1": { "Occupied": false }, 
+        "2": { "Occupied": false },
+        "3": { "Occupied": false }, 
+        "4": { "Occupied": true },
+        "5": { "Occupied": true }, 
+        "6": { "Occupied": true },
+        "7": { "Occupied": true }, 
+        "8": { "Occupied": false },
+        "9": { "Occupied": false }, 
+        "10": { "Occupied": false },
+        "11": { "Occupied": false }, 
+        "12": { "Occupied": false },
+        "13": { "Occupied": true }, 
+        "14": { "Occupied": true },
+        "15": { "Occupied": true }, 
+        "16": { "Occupied": true },
+        "17": { "Occupied": false }, 
+        "18": { "Occupied": true }, 
+        "19": { "Occupied": true }, 
+        "20": { "Occupied": true },
+        "21": { "Occupied": false }, 
+        "22": { "Occupied": true },
+        "23": { "Occupied": true }, 
+        "24": { "Occupied": true },
+        "25": { "Occupied": true }, 
+        "26": { "Occupied": false },
+        "27": { "Occupied": true }, 
+        "28": { "Occupied": false },
+        "29": { "Occupied": true }, 
+        "30": { "Occupied": true },
+        "31": { "Occupied": false }, 
+        "32": { "Occupied": false } 
+        } 
+        }, 
+        "145567":
+        { 
+        "seats": {          
+        "1": { "Occupied": false }, 
+        "2": { "Occupied": false },
+        "3": { "Occupied": false }, 
+        "4": { "Occupied": true },
+        "5": { "Occupied": true }, 
+        "6": { "Occupied": true },
+        "7": { "Occupied": true }, 
+        "8": { "Occupied": true },
+        "9": { "Occupied": false }, 
+        "10": { "Occupied": false },
+        "11": { "Occupied": false }, 
+        "12": { "Occupied": false },
+        "13": { "Occupied": false }, 
+        "14": { "Occupied": true },
+        "15": { "Occupied": true }, 
+        "16": { "Occupied": true },
+        "17": { "Occupied": false }, 
+        "18": { "Occupied": true }, 
+        "19": { "Occupied": true }, 
+        "20": { "Occupied": false },
+        "21": { "Occupied": false }, 
+        "22": { "Occupied": true },
+        "23": { "Occupied": true }, 
+        "24": { "Occupied": true },
+        "25": { "Occupied": true }, 
+        "26": { "Occupied": true },
+        "27": { "Occupied": true }, 
+        "28": { "Occupied": false },
+        "29": { "Occupied": true }, 
+        "30": { "Occupied": true },
+        "31": { "Occupied": false }, 
+        "32": { "Occupied": false } 
+        } 
+        } 
+      },
+      "schedule": 
+      {
+        "2025-10-12": 
+        {
+        "1760246640000": { "train": "2" },
+        "1760252160000": { "train": "3" },
+        "1760267700000": { "train": "1" },
+        "1760270460000": { "train": "2" },
+        "1760279400000": { "train": "1" },
+        "1760284500000": { "train": "3" }
+      },
+      "2025-10-13": {
+        "1760336400000": { "train": "2" },
+        "1760342640000": { "train": "3" },
+        "1760350200000": { "train": "3" },
+        "1760350440000": { "train": "1" },
+        "1760359920000": { "train": "1" },
+        "1760374320000": { "train": "2" }
+      },
+      "2025-10-14": {
+        "1760415600000": { "train": "1" },
+        "1760419620000": { "train": "1" },
+        "1760433000000": { "train": "2" },
+        "1760436720000": { "train": "2" },
+        "1760438820000": { "train": "3" },
+        "1760439540000": { "train": "3" }
+      },
+      "2025-10-15": {
+        "1760514180000": { "train": "1" },
+        "1760515800000": { "train": "1" },
+        "1760523960000": { "train": "2" },
+        "1760536560000": { "train": "3" },
+        "1760539320000": { "train": "2" },
+        "1760552400000": { "train": "3" }
+      },
+      "2025-10-16": {
+        "1760598660000": { "train": "3" },
+        "1760607660000": { "train": "2" },
+        "1760611260000": { "train": "1" },
+        "1760624460000": { "train": "3" },
+        "1760626200000": { "train": "2" },
+        "1760634720000": { "train": "1" }
+      },
+      "2025-10-17": {
+        "1760689200000": { "train": "3" },
+        "1760695200000": { "train": "2" },
+        "1760701200000": { "train": "1" },
+        "1760707200000": { "train": "1" },
+        "1760714400000": { "train": "2" },
+        "1760721600000": { "train": "3" }
+      },
+      "2025-10-18": {
+        "1760780400000": { "train": "2" },
+        "1760786400000": { "train": "3" },
+        "1760792400000": { "train": "1" },
+        "1760799600000": { "train": "2" },
+        "1760806800000": { "train": "3" },
+        "1760814000000": { "train": "1" }
+      },
+      "2025-10-19": {
+        "1760866800000": { "train": "3" },
+        "1760874000000": { "train": "2" },
+        "1760880000000": { "train": "1" },
+        "1760887200000": { "train": "3" },
+        "1760894400000": { "train": "1" },
+        "1760901600000": { "train": "2" }
+      },
+      "2025-10-20": {
+        "1760953200000": { "train": "1" },
+        "1760960400000": { "train": "2" },
+        "1760967600000": { "train": "3" },
+        "1760974800000": { "train": "1" },
+        "1760982000000": { "train": "3" },
+        "1760989200000": { "train": "2" }
+      },
+      "2025-10-21": {
+        "1761039600000": { "train": "3" },
+        "1761046800000": { "train": "1" },
+        "1761054000000": { "train": "2" },
+        "1761061200000": { "train": "3" },
+        "1761068400000": { "train": "2" },
+        "1761075600000": { "train": "1" }
+      },
+      "2025-10-22": {
+        "1761126000000": { "train": "2" },
+        "1761133200000": { "train": "3" },
+        "1761140400000": { "train": "1" },
+        "1761147600000": { "train": "1" },
+        "1761154800000": { "train": "3" },
+        "1761162000000": { "train": "2" }
+      },
+      "2025-10-23": {
+        "1761212400000": { "train": "1" },
+        "1761219600000": { "train": "2" },
+        "1761226800000": { "train": "3" },
+        "1761234000000": { "train": "2" },
+        "1761241200000": { "train": "3" },
+        "1761248400000": { "train": "1" }
+      },
+      "2025-10-24": {
+        "1761298800000": { "train": "3" },
+        "1761306000000": { "train": "2" },
+        "1761313200000": { "train": "1" },
+        "1761320400000": { "train": "1" },
+        "1761327600000": { "train": "3" },
+        "1761334800000": { "train": "2" }
+      },
+      "2025-10-25": {
+        "1761385200000": { "train": "2" },
+        "1761392400000": { "train": "3" },
+        "1761399600000": { "train": "1" },
+        "1761406800000": { "train": "2" },
+        "1761414000000": { "train": "3" },
+        "1761421200000": { "train": "1" }
+      },
+      "2025-10-26": {
+        "1761477600000": { "train": "1" },
+        "1761484800000": { "train": "2" },
+        "1761492000000": { "train": "3" },
+        "1761499200000": { "train": "3" },
+        "1761506400000": { "train": "1" },
+        "1761513600000": { "train": "2" }
+      },
+      "2025-10-27": {
+        "1761564000000": { "train": "3" },
+        "1761571200000": { "train": "1" },
+        "1761578400000": { "train": "2" },
+        "1761585600000": { "train": "1" },
+        "1761592800000": { "train": "3" },
+        "1761600000000": { "train": "2" }
+      },
+      "2025-10-28": {
+        "1761650400000": { "train": "2" },
+        "1761657600000": { "train": "3" },
+        "1761664800000": { "train": "1" },
+        "1761672000000": { "train": "3" },
+        "1761679200000": { "train": "2" },
+        "1761686400000": { "train": "1" }
+      },
+      "2025-10-29": {
+        "1761736800000": { "train": "1" },
+        "1761744000000": { "train": "3" },
+        "1761751200000": { "train": "2" },
+        "1761758400000": { "train": "2" },
+        "1761765600000": { "train": "3" },
+        "1761772800000": { "train": "1" }
+      },
+      "2025-10-30": {
+        "1761797040000": { "train": "3" },
+        "1761809100000": { "train": "2" },
+        "1761812400000": { "train": "1" },
+        "1761816900000": { "train": "1" },
+        "1761823380000": { "train": "2" },
+        "1761841560000": { "train": "3" }
+      }
+  }
+}
