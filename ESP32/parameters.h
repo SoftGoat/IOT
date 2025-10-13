@@ -24,4 +24,8 @@
 #define DAC_WS_PIN 25
 #define DAC_DATA_PIN 22
 
-
+// Firebase variables
+const char* API_KEY = "AIzaSyCGbpMrhaH8YEkw_W9sejNX3DAPbGailI8";
+const char* DATABASE_URL = "https://iot2025-56325-default-rtdb.europe-west1.firebasedatabase.app";  
+const char* USER_EMAIL = "arduin2505@gmail.com";  
+const char* USER_PASSWORD = "123456";
