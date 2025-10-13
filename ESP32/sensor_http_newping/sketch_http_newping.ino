@@ -5,8 +5,6 @@
 #include <Preferences.h>
 #include "../parameters.h"
 
-int dummyChange = 3;
-
 String idToken; 
 String refreshToken;
 int expiresIn;
