@@ -94,6 +94,7 @@
     .legend{
       gap:14px; 
       margin-top: 1vh; 
+      margin-bottom: 1vh;
       justify-content: center; 
       align-items: center;
     }
@@ -159,6 +160,40 @@
       min-width: 100px; 
       max-width: 200px;
     }
+
+    /* Upcoming trains container */
+    .upcoming-container {
+      margin-top: 14px;
+      display: none; /* shown when data is available */
+    }
+    .upcoming-header {
+      font-weight: 600;
+      margin-bottom: 6px;
+      text-align: center;
+      color: #333;
+    }
+    .upcoming-list {
+      max-height: 200px;
+      overflow-y: auto;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+      padding: 6px;
+    }
+    .upcoming-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 8px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      border-radius: 6px;
+    }
+    .upcoming-item:last-child { border-bottom: none; }
+    .upcoming-item:hover { background: #f7f7f7; }
+    .upcoming-train-num { font-weight: 700; color: #111; }
+    .upcoming-time { font-variant-numeric: tabular-nums; color: #555; }
   </style>
 </head>
 <body>
@@ -179,6 +214,11 @@
     <div id="train"></div>
     <div class="legend" style="display:none" id="legend">
       </div>
+    <!-- Upcoming trains list (below diagram and legend) -->
+    <div id="upcomingTrains" class="upcoming-container">
+      <div class="upcoming-header">Upcoming trains</div>
+      <div id="upcomingList" class="upcoming-list"></div>
+    </div>
   </div>
     
   <script type="module">
@@ -205,6 +245,8 @@
     const trainViewBtn = document.getElementById('trainViewBtn');
     const seatsViewBtn = document.getElementById('seatsViewBtn');
     const nearestBtn = document.getElementById('nearestBtn');
+  const upcomingContainer = document.getElementById('upcomingTrains');
+  const upcomingListEl = document.getElementById('upcomingList');
 
     //constants and global variables
     const TOTAL_SEATS_PER_ROW = 8;  
@@ -221,6 +263,21 @@
     // unsubscribe function for Firebase listeners
     let unsub = null;
     let carUnsubscribes = [];
+  let scheduleUnsub = null;
+    // simple render scheduler to avoid thrashing the DOM and to allow smooth transitions
+    let renderPending = false;
+
+    function scheduleRender() {
+      if (renderPending) return;
+      renderPending = true;
+      requestAnimationFrame(() => {
+        renderPending = false;
+        if (latestCarIds && latestCarsData) {
+          render(latestCarIds, latestCarsData);
+          legendEl.style.display = 'flex';
+        }
+      });
+    }
 
     // build seats object for a car, if seats are missing, fill with fake seats  
     function buildSeatsForCar(carId, carData) {
@@ -349,6 +406,72 @@
       checkBtn.click();
     }
 
+    // Render upcoming trains into the scrollable list
+    function renderUpcoming(upcoming) {
+      if (!Array.isArray(upcoming) || upcoming.length === 0) {
+        upcomingContainer.style.display = 'none';
+        upcomingListEl.innerHTML = '';
+        return;
+      }
+      upcomingContainer.style.display = 'block';
+      const items = upcoming.map(item => {
+        const d = new Date(item.time);
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mm = String(d.getMinutes()).padStart(2, '0');
+        const timeText = `${hh}:${mm}`;
+        return `<div class="upcoming-item" data-train="${item.train}">
+                  <span class="upcoming-train-num">Train ${item.train}</span>
+                  <span class="upcoming-time">${timeText}</span>
+                </div>`;
+      });
+      upcomingListEl.innerHTML = items.join('');
+      // Click to open train
+      Array.from(upcomingListEl.querySelectorAll('.upcoming-item')).forEach(el => {
+        el.addEventListener('click', () => {
+          const t = el.getAttribute('data-train');
+          if (t) drawTrain(t);
+        });
+      });
+    }
+
+    // Subscribe to schedule and maintain the upcoming list
+    function subscribeUpcoming() {
+      const scheduleRef = ref(db, 'schedule');
+      // Clean up previous subscription if exists
+      if (typeof scheduleUnsub === 'function') scheduleUnsub();
+      scheduleUnsub = onValue(scheduleRef, (snapshot) => {
+        const data = snapshot.val();
+        if (!data) {
+          renderUpcoming([]);
+          return;
+        }
+        const now = Date.now();
+        const upcoming = [];
+        // Flatten all schedule entries into an array
+        for (const dateKey in data) {
+          const day = data[dateKey];
+          if (!day || typeof day !== 'object') continue;
+          for (const tsKey in day) {
+            const entry = day[tsKey];
+            const timeNum = Number(tsKey);
+            if (!Number.isFinite(timeNum)) continue;
+            const trainNum = entry && (entry.train ?? entry.trainNumber ?? entry.number);
+            if (!trainNum) continue;
+            if (timeNum >= now) {
+              upcoming.push({ train: String(trainNum), time: timeNum });
+            }
+          }
+        }
+        // Sort ascending and limit the list
+        upcoming.sort((a, b) => a.time - b.time);
+        const limited = upcoming.slice(0, 20);
+        renderUpcoming(limited);
+      }, (err) => {
+        console.error('Error listening to schedule:', err);
+        renderUpcoming([]);
+      });
+    }
+
     //const intervalId = setInterval(refreshFakeLocally, FAKE_UPDATE_MS);
     
     //setTimeout(refreshFakeLocally, 500);
@@ -361,8 +484,7 @@
         alert("Please enter train number");
         return;
       }
-      trainEl.innerHTML = 'Loading...';
-      legendEl.style.display = 'none';
+  // Keep current UI while new data loads for smoother UX (no blank flicker)
       // unsubscribe from previous listeners to previous train and cars
       if (typeof unsub === 'function') unsub();
       carUnsubscribes.forEach(unsubFn => {
@@ -397,10 +519,8 @@
               if (carData) {
                 carsData[carId] = carData;
                 latestCarsData = carsData;
-                if (Object.keys(carsData).length === carIds.length) {
-                  render(carIds, carsData);
-                  legendEl.style.display = 'flex';
-                }
+                // Render incrementally as data arrives for smoother updates
+                scheduleRender();
               }
             }, (err) => {
               console.error(`Error listening to car ${carId}:`, err);
@@ -471,6 +591,9 @@
       }
     });
 
+    // Start schedule subscription for the upcoming trains strip
+    subscribeUpcoming();
+
 
     // clean up on page unload
     window.addEventListener('beforeunload', () => {
@@ -478,6 +601,7 @@
       carUnsubscribes.forEach(unsubFn => {
         if (typeof unsubFn === 'function') unsubFn();
       });
+      if (typeof scheduleUnsub === 'function') scheduleUnsub();
     });
   </script>
 </body>
