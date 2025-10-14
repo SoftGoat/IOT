@@ -41,6 +41,7 @@
       flex-direction: row;
       flex-wrap: nowrap;        
       gap: 20px;                     
+      padding: 0 12px; /* prevent first/last cars from touching edges */
     }
     /* each car */
     .car {
@@ -190,7 +191,7 @@
     }
     .board-grid {
       display: grid;
-      grid-template-columns: 1.2fr 2fr 1fr 1fr; /* Train, Destination, Gate, Time */
+      grid-template-columns: 1.2fr 2fr 0.9fr 1fr 0.9fr; /* Train, Destination, Gate, Date, Time */
       column-gap: 12px;
       align-items: center;
     }
@@ -219,9 +220,46 @@
     .board-cell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .board-train { font-weight: 700; color: #111; }
     .board-time { font-variant-numeric: tabular-nums; color: #555; }
+
+    /* Current train info card (top-right) */
+    .current-train-card {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      width: 260px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      padding: 10px 12px;
+      z-index: 900;
+    }
+    .ctc-title {
+      font-weight: 700;
+      font-size: 14px;
+      color: #111;
+      margin-bottom: 8px;
+    }
+    .ctc-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 6px 10px;
+      align-items: center;
+      font-size: 14px;
+      color: #222;
+    }
+    .ctc-label { color: #666; }
+    .ctc-value { font-variant-numeric: tabular-nums; }
+    @media (max-width: 600px) {
+      .current-train-card { width: 220px; top: 8px; right: 8px; padding: 8px 10px; }
+      .ctc-title { font-size: 13px; }
+      .ctc-grid { font-size: 13px; }
+    }
   </style>
 </head>
 <body>
+  <!-- Current viewed train info (top-right) -->
+  <div id="currentTrainCard" class="current-train-card" style="display:none"></div>
   <h1>Train monitor</h1>
   <!-- toggles for main views -->
   <div id="viewToggle" style="display:flex;justify-content:center;gap:10px;margin-bottom:10px">
@@ -272,6 +310,7 @@
     const nearestBtn = document.getElementById('nearestBtn');
   const upcomingContainer = document.getElementById('upcomingTrains');
   const upcomingListEl = document.getElementById('upcomingList');
+    const currentTrainCard = document.getElementById('currentTrainCard');
 
     //constants and global variables
     const TOTAL_SEATS_PER_ROW = 8;  
@@ -431,6 +470,76 @@
       checkBtn.click();
     }
 
+    // Update the top-right card with current train details
+    async function updateCurrentTrainCard(trainNum) {
+      try {
+        if (!trainNum) { currentTrainCard.style.display = 'none'; return; }
+        const dbRef = ref(db, 'schedule');
+        const snapshot = await get(dbRef);
+        let depTime = null;
+        // derive dummy destination/platform in a stable way
+        const DESTS = [
+          'Haifa', 'Tel Aviv', 'Jerusalem', 'Beer Sheva', 'Ashdod',
+          'Ashkelon', 'Netanya', 'Herzliya', 'Lod', 'Modi\'in'
+        ];
+        const hashNum = (str) => {
+          let h = 0; for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0; return h;
+        };
+        const formatTime = (t) => {
+          const d = new Date(t);
+          const hh = String(d.getHours()).padStart(2,'0');
+          const mm = String(d.getMinutes()).padStart(2,'0');
+          return `${hh}:${mm}`;
+        };
+        let destination = null;
+        let platform = null;
+        const now = Date.now();
+
+        if (snapshot.exists()) {
+          const schedule = snapshot.val();
+          let best = { t: Infinity, entry: null };
+          for (const date in schedule) {
+            const day = schedule[date];
+            if (!day || typeof day !== 'object') continue;
+            for (const ts in day) {
+              const entry = day[ts];
+              const tNum = Number(ts);
+              const trainField = entry && (entry.train ?? entry.trainNumber ?? entry.number);
+              if (String(trainField) !== String(trainNum)) continue;
+              if (Number.isFinite(tNum) && tNum >= now && tNum < best.t) {
+                best = { t: tNum, entry };
+              }
+            }
+          }
+          if (best.entry) {
+            depTime = best.t;
+            destination = best.entry.destination || null;
+            platform = best.entry.platform || null;
+          }
+        }
+
+        // Fallbacks/dummies if missing
+        const tStr = String(trainNum);
+        const h = hashNum(tStr);
+        if (!destination) destination = DESTS[h % DESTS.length];
+        if (!platform) platform = `${String.fromCharCode(65 + (h % 6))}${(h % 12) + 1}`; // A-F + 1-12
+        const timeText = depTime ? formatTime(depTime) : '—';
+
+        currentTrainCard.innerHTML = `
+          <div class="ctc-title">Current train</div>
+          <div class="ctc-grid">
+            <div class="ctc-label">Train:</div><div class="ctc-value">${tStr}</div>
+            <div class="ctc-label">Destination:</div><div class="ctc-value">${destination}</div>
+            <div class="ctc-label">Platform:</div><div class="ctc-value">${platform}</div>
+            <div class="ctc-label">Departure:</div><div class="ctc-value">${timeText}</div>
+          </div>`;
+        currentTrainCard.style.display = 'block';
+      } catch (e) {
+        console.error('Failed to update current train card:', e);
+        currentTrainCard.style.display = 'none';
+      }
+    }
+
     // Render upcoming trains into the scrollable list
     function renderUpcoming(upcoming) {
       if (!Array.isArray(upcoming) || upcoming.length === 0) {
@@ -457,12 +566,30 @@
         const mm = String(d.getMinutes()).padStart(2, '0');
         return `${hh}:${mm}`;
       };
+      const formatDateDDMMYYYY = (val) => {
+        // If value is a schedule key like "YYYY-MM-DD"
+        if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+          const [y, m, d] = val.split('-');
+          return `${d}/${m}/${y}`;
+        }
+        // If value is a timestamp or Date
+        const d = val instanceof Date ? val : new Date(val);
+        if (!isNaN(d)) {
+          const day = String(d.getDate()).padStart(2, '0');
+          const mon = String(d.getMonth() + 1).padStart(2, '0');
+          const yr = d.getFullYear();
+          return `${day}/${mon}/${yr}`;
+        }
+        // Fallback to raw string
+        return String(val ?? '');
+      };
 
       const header = `
         <div class="board-header board-grid">
           <div class="board-cell">Train</div>
           <div class="board-cell">Destination</div>
-          <div class="board-cell">Gate</div>
+          <div class="board-cell">Platform</div>
+          <div class="board-cell">Date</div>
           <div class="board-cell">Time</div>
         </div>`;
 
@@ -474,10 +601,12 @@
         const gateNum = (h % 12) + 1; // 1-12
         const gate = `${gateLetter}${gateNum}`;
         const timeText = formatTime(item.time);
+        const dateText = formatDateDDMMYYYY(item.date || item.time);
         return `<div class="upcoming-item board-grid" data-train="${tStr}">
                   <div class="board-cell board-train">${tStr}</div>
                   <div class="board-cell board-dest">${dest}</div>
                   <div class="board-cell board-gate">${gate}</div>
+                  <div class="board-cell board-date">${dateText}</div>
                   <div class="board-cell board-time">${timeText}</div>
                 </div>`;
       });
@@ -515,7 +644,7 @@
             const trainNum = entry && (entry.train ?? entry.trainNumber ?? entry.number);
             if (!trainNum) continue;
             if (timeNum >= now) {
-              upcoming.push({ train: String(trainNum), time: timeNum });
+              upcoming.push({ train: String(trainNum), time: timeNum, date: dateKey });
             }
           }
         }
@@ -541,6 +670,8 @@
         alert("Please enter train number");
         return;
       }
+      // Update the current train info card
+      updateCurrentTrainCard(trainNum);
   // Keep current UI while new data loads for smoother UX (no blank flicker)
       // unsubscribe from previous listeners to previous train and cars
       if (typeof unsub === 'function') unsub();
