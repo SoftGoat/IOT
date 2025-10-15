@@ -18,6 +18,8 @@ class Button:
         else:
             self.text_size = text_size
 
+        self.text = text
+
         # 3. Define Hit Box Dimensions (used for self.rect)
         if hit_size:
             # If hit_size is provided, use it for the rect

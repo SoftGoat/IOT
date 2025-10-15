@@ -104,8 +104,14 @@ PALETTE_TILE_PADDING = 10
 PASSENGER_SPAWN_BUBBLE = "assets/passengers_bubble.png" 
 
 # --- Editable Text Box Constants ---
-SPAWN_COUNT_DEFAULT = 10 
+SPAWN_COUNT_DEFAULT = 100 
 SPAWN_BUBBLE_SIZE = 60 # Size for the square bubble image and text box
+
+# --- Simulation Parameters ---
+# Parameters for queue choice utility: Utility = (K_RATIO_LENGTH / QueueLength) + (1.0 / Distance) + RandomBias
+K_RATIO_LENGTH_DEFAULT = 10
+K_RATIO_LENGTH_MIN = 0.0
+K_RATIO_LENGTH_MAX = 30.0 # Allows for extreme preference for short queues
 
 
 

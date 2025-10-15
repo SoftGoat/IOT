@@ -4,7 +4,7 @@ import sys
 import config
 from game_states.main_menu import MainMenu
 from game_states.build_state import BuildState
-from game_states.simulation_state import SimulationState
+from game_states.simulation.simulation_state import SimulationState
 
 def main():
     pygame.init()

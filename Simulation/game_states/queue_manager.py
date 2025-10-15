@@ -1,5 +1,3 @@
-# queue_manager.py
-
 import random
 import math
 
@@ -43,15 +41,33 @@ class QueueManager:
         distance = math.sqrt((r1 - r2)**2 + (c1 - c2)**2)
         return distance
 
-    def distribute_passengers_utility_based(self, k_length=5.0, k_distance=20.0):
+    def distribute_passengers_utility_based(self, k_length_ratio=10.0):
         """
-        Assigns each individual passenger to an entry queue based on a simple 
-        utility function, selecting the next passenger randomly from available spawn points.
+        TEMPORARY TEST: Uses k_length_ratio to set opposing weights for Queue Length and Distance.
+        This test should produce EXTREME sensitivity to the slider value.
+        
+        New weights:
+        k_length = k_length_ratio
+        k_distance = 50.0 - k_length_ratio (where 50.0 is the max from config)
+        
+        :param k_length_ratio: The value from the slider (expected range 0.0 to 50.0).
+        :returns: dict, {pos_key: 0} for all original spawn keys.
+        """
+        
+        # DEBUG PRINT STATEMENT (Keep for now to confirm the value is passed)
+        print(f"DEBUG: Using K_RATIO (slider value) = {k_length_ratio}")
+        
+        # 1. Define Opposing Weights (Max range of 50 assumed)
+        MAX_WEIGHT_VALUE = 50.0
+        
+        # Clamp the ratio to the expected range for the complementary math to work
+        k_ratio = max(0.0, min(MAX_WEIGHT_VALUE, k_length_ratio))
+        
+        # 
+        k_distance = k_ratio
 
-        :param k_length: Weighting factor for queue length. Higher value means length is more important.
-        :param k_distance: Weighting factor for distance.
-        :returns: dict, {pos_key: 0} for all original spawn keys (for simulation initialization).
-        """
+        # When k_ratio is 0, k_length is 50 and k_distance is 0.
+        k_length = MAX_WEIGHT_VALUE - k_ratio
         
         # 1. Clear existing assignments
         self.clear_queues()
@@ -66,10 +82,8 @@ class QueueManager:
         while active_spawn_tiles:
             
             # --- Randomly Select the Next Passenger's Origin ---
-            # Randomly choose one of the remaining active spawn tiles
             stair_pos = random.choice(active_spawn_tiles)
             
-            # This passenger makes a greedy decision based on current queue lengths
             best_entry_pos = None
             max_utility = -float('inf')
 
@@ -89,6 +103,7 @@ class QueueManager:
                 B = random.uniform(0.0, 0.5)
 
                 # --- Utility Function (higher is better) ---
+                # The utility is calculated using the complementary weights k_length and k_distance
                 utility = (k_length / L) + (k_distance / D) + B
 
                 if utility > max_utility:
@@ -98,7 +113,7 @@ class QueueManager:
             # 5. Assign the passenger and update counts
             if best_entry_pos:
                 self.queues[best_entry_pos] += 1
-                spawn_counts[stair_pos] -= 1 # Decrement the count for the chosen spawn point
+                spawn_counts[stair_pos] -= 1 
                 
                 # If the spawn point is now empty, remove it from the active list
                 if spawn_counts[stair_pos] == 0:
