@@ -13,7 +13,13 @@
       padding:2vh
     }
     h1{
-      text-align:center
+      text-align:center;
+      margin-bottom:5px;
+     
+    }
+    h2{
+      margin-top: 0;
+      margin-bottom: 5px;
     }
     /* container for search field and buttons*/
     #search{
@@ -61,7 +67,7 @@
     .seats{
       height: 150px;
       flex-direction:column;
-      width: 100%; 
+      width: 90%; 
       display:flex;
       gap:20px;
       border-radius:8px;
@@ -162,6 +168,19 @@
   </style>
 </head>
 <body>
+  <h2>Departures</h2>
+  <table id="nextTrainsTable" border="1" style="border-collapse: collapse; width: 100%; text-align: center;">
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Time</th>
+        <th>Direction</th>
+        <th>Platform</th>
+        <th>Train</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
   <h1>Train monitor</h1>
   <!-- toggles for main views -->
   <div id="viewToggle" style="display:flex;justify-content:center;gap:10px;margin-bottom:10px">
@@ -173,6 +192,7 @@
     <input type="number" id="trainInput" placeholder="Train number" />
     <button id="checkBtn">Check</button>
     <button id="nearestBtn">Find nearest train</button>
+    <p id="countdown" style="text-align:center;font-weight:bold;"></p>
   </div>
   <!-- train and legend container -->
   <div class="train-container">
@@ -205,6 +225,8 @@
     const trainViewBtn = document.getElementById('trainViewBtn');
     const seatsViewBtn = document.getElementById('seatsViewBtn');
     const nearestBtn = document.getElementById('nearestBtn');
+    const countdownEl = document.getElementById('countdown');
+    const tableBody = document.querySelector("#nextTrainsTable tbody");
 
     //constants and global variables
     const TOTAL_SEATS_PER_ROW = 8;  
@@ -217,10 +239,70 @@
     //variable to hold latest data for re-rendering
     let latestCarIds = null;
     let latestCarsData = null;
+    let trainTimeoutId = null;
+    let countdownIntervalId = null;
 
     // unsubscribe function for Firebase listeners
     let unsub = null;
     let carUnsubscribes = [];
+
+    async function loadNextTrains() {
+      const scheduleRef = ref(db, 'schedule');
+      const snapshot = await get(scheduleRef);
+      if (!snapshot.exists()) {
+        console.log("No schedule found");
+        return;
+      }
+
+      const schedule = snapshot.val();
+      const now = Date.now();
+      const futureTrains = [];
+
+      // Collect all future trains
+      for (const date in schedule) {
+        for (const ts in schedule[date]) {
+          const train = schedule[date][ts].train;
+          const platform = schedule[date][ts].platform || ""; 
+          const direction = schedule[date][ts].destination || "";
+          if (Number(ts) > now) {
+            futureTrains.push({
+              timestamp: Number(ts),
+              date,
+              train,
+              direction,
+              platform,
+            });
+          }
+        }
+      }
+      // Sort by timestamp and take next 6
+      futureTrains.sort((a, b) => a.timestamp - b.timestamp);
+      const next6 = futureTrains.slice(0, 6);
+      setTimeout(() => {
+            console.log(`🚆 Next train: ${next6[0].train} at ${Date.now()}`);
+            loadNextTrains();
+          }, next6[0].timestamp - Date.now());
+      // Output to table
+      tableBody.innerHTML = "";
+      next6.forEach(item => {
+        const dateObj = new Date(item.timestamp);
+        const dateStr = dateObj.toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit" });
+        const timeStr = dateObj.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${dateStr}</td>
+          <td>${timeStr}</td>
+          <td>${item.direction}</td>
+          <td>${item.platform}</td>
+          <td>${item.train}</td>
+        `;
+        tableBody.appendChild(row);
+      });
+    }
+
+    // initially load next trains
+    loadNextTrains();
 
     // build seats object for a car, if seats are missing, fill with fake seats  
     function buildSeatsForCar(carId, carData) {
@@ -346,16 +428,10 @@
     // function to draw a train by its number
     function drawTrain(trainNum) {
       trainInput.value = trainNum;
-      checkBtn.click();
+      getTrains();
     }
 
-    //const intervalId = setInterval(refreshFakeLocally, FAKE_UPDATE_MS);
-    
-    //setTimeout(refreshFakeLocally, 500);
-
-    // event listeners for check button
-    checkBtn.addEventListener('click', () => {
-      // get train number from input
+    function getTrains() {
       const trainNum = trainInput.value.trim();
       if (!trainNum) {
         alert("Please enter train number");
@@ -413,6 +489,19 @@
           trainEl.innerHTML = '<i>Error</i>';
         }
       );
+    }
+
+    //const intervalId = setInterval(refreshFakeLocally, FAKE_UPDATE_MS);
+    
+    //setTimeout(refreshFakeLocally, 500);
+    
+    // event listeners for check button
+    checkBtn.addEventListener('click', () => {
+      if (trainTimeoutId !== null) {
+        clearTimeout(trainTimeoutId);
+        trainTimeoutId = null;
+      }
+      getTrains();
     });
 
     // event listeners for view toggle buttons
@@ -435,6 +524,10 @@
     // event listener for nearest train button
     nearestBtn.addEventListener('click', async () => {
     try {
+        if (trainTimeoutId !== null) {
+          clearTimeout(trainTimeoutId);
+          trainTimeoutId = null;
+        }
         // fetch schedule from database
         const dbRef = ref(db, 'schedule');
         const snapshot = await get(dbRef);
@@ -460,7 +553,15 @@
           }
         }
         if (nearestTrain) {
-          console.log(`The nearest train is №${nearestTrain}`);
+          console.log(`The nearest train is №${nearestTrain} at ${new Date(nearestTime).toLocaleTimeString()}`);
+          trainTimeoutId = setTimeout(() => {
+            trainInput.value = '';
+            trainEl.innerHTML = ''; 
+            legendEl.style.display = 'none';
+            alert(`🚆 Train ${nearestTrain} has departed!`);
+            trainTimeoutId = null;
+          }, nearestTime - Date.now());
+          console.log(`Alert set for ${nearestTime - Date.now()}`);
           // draw the train
           drawTrain(nearestTrain);
         } else {
