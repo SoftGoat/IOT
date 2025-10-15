@@ -1,0 +1,160 @@
+<!-- public/index.html -->
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Train seats monitor — demo</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    body{font-family:Arial,Helvetica,sans-serif;background:#f7f7f7;padding:18px}
+    h1{text-align:center}
+    #train{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:18px}
+    .car{width:220px;padding:10px;border-radius:8px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;color:#fff;font-weight:700;box-shadow:0 2px 6px rgba(0,0,0,0.12);background:#ddd}
+    .num{font-size:16px;margin-bottom:8px;color:black} /* Название вагона - чёрное */
+    .seats{display:flex;gap:10px;margin-top:4px}
+    .seat{width:80px;height:48px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;color:#000}
+    .legend{display:flex;gap:14px;justify-content:center;margin-top:14px}
+    .dot{width:16px;height:16px;display:inline-block;border-radius:3px;margin-right: 6px;}
+    .note{margin-top:10px;text-align:center;font-size:13px;color:#333}
+  </style>
+</head>
+<body>
+  <h1> Train #56789</h1>
+  <div id="train">Downloading...</div>
+
+  <div class="legend">
+    <span><span class="dot" style="background:green"></span>Vacant (&gt;=70)</span>
+    <span><span class="dot" style="background:red"></span>Occupied (0–69)</span>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js';
+    import { getDatabase, ref, onValue } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js';
+
+    const firebaseConfig = {
+  	apiKey: "AIzaSyCGbpMrhaH8YEkw_W9sejNX3DAPbGailI8",
+  	authDomain: "iot2025-56325.firebaseapp.com",
+  	databaseURL: "https://iot2025-56325-default-rtdb.europe-west1.firebasedatabase.app",
+  	projectId: "iot2025-56325",
+  	storageBucket: "iot2025-56325.firebasestorage.app",
+  	messagingSenderId: "606759241623",
+  	appId: "1:606759241623:web:1335d0d444eb4d242b66d2"
+    };
+    // -------------------------------------------------------------------------
+
+const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const trainEl = document.getElementById('train');
+    const carsRef = ref(db, 'trains/train1/cars');
+
+    // Параметры
+    const REAL_CAR_ID = '1';         // первый вагон
+    const REAL_SEATS = [1, 2];      // реальные сенсоры — seat 1 и 2 (в этом вагоне)
+    const TOTAL_SEATS_PER_CAR = 4;  // сколько сидений рисовать в каждом вагоне (можешь изменить)
+    const FAKE_UPDATE_MS = 60_000;  // обновление фейковых данных каждую минуту
+
+    // Хранилище последних полученных данных из RTDB
+    let latestCarsSnapshot = null;
+
+    // Функция генерации случайного расстояния 0..200
+    function randDist() { return Math.floor(Math.random() * 201); }
+
+    // Создаёт набор сидений, объединяя реальные (если есть) и фейковые для остальных
+    function buildSeatsForCar(carId, carData) {
+      const seats = {};
+      // Если carData.seats существует — используем реальные значения для тех мест, что есть
+      const sourceSeats = (carData && carData.seats) ? carData.seats : {};
+
+      for (let s = 1; s <= TOTAL_SEATS_PER_CAR; s++) {
+        // реальные только для carId == REAL_CAR_ID и s в REAL_SEATS
+        if (String(carId) === String(REAL_CAR_ID) && REAL_SEATS.includes(s)) {
+          // берем реальное значение, если есть; иначе считаем 0 (или можно rand)
+          const real = sourceSeats[s] && (sourceSeats[s].sensorDistance !== undefined)
+                       ? sourceSeats[s].sensorDistance
+                       : 0;
+          seats[s] = { sensorDistance: real, isFake: false };
+        } else {
+          // фейковое значение — либо берем существующее значение из БД если есть и помечено как isFake,
+          // либо генерируем новое
+          if (sourceSeats[s] && sourceSeats[s].sensorDistance !== undefined && sourceSeats[s].isFake) {
+            seats[s] = { sensorDistance: sourceSeats[s].sensorDistance, isFake: true };
+          } else {
+            seats[s] = { sensorDistance: randDist(), isFake: true };
+          }
+        }
+      }
+      return seats;
+    }
+
+    // Рендер всей структуры вагонов
+    function render(cars) {
+      if (!cars) { trainEl.innerHTML = '<i>Нет данных</i>'; return; }
+      trainEl.innerHTML = '';
+      const keys = Object.keys(cars).sort((a,b)=>Number(a)-Number(b));
+      for (const k of keys) {
+        const car = cars[k] || {};
+        // Построим объединённые seats
+        const seats = buildSeatsForCar(k, car);
+        const carDiv = document.createElement('div');
+        carDiv.className = 'car';
+
+        const seatsHtml = [];
+        seatsHtml.push(`<div class="num">Вагон ${k}</div>`);
+        seatsHtml.push(`<div class="seats">`);
+        const seatKeys = Object.keys(seats).sort((a,b)=>Number(a)-Number(b));
+        for (const s of seatKeys) {
+          const item = seats[s];
+          const dist = item.sensorDistance ?? 0;
+          let color = 'gray';
+          if (dist < 50) color = 'red';
+          else color = 'green';
+          const border = item.isFake ? '2px dashed rgba(0,0,0,0.25)' : 'none';
+          // отображаем число и, при нехватке места, единицу (см) можно добавить, но тут оставим число
+          seatsHtml.push(`<div class="seat" style="background:${color};border:${border}"></div>`);
+        }
+        seatsHtml.push(`</div>`);
+
+        carDiv.innerHTML = seatsHtml.join('');
+        trainEl.appendChild(carDiv);
+      }
+    }
+
+    // Подписка на RTDB — при первых данных и при обновлениях вызывается render
+    onValue(carsRef, (snapshot) => {
+      const cars = snapshot.val() || {};
+      latestCarsSnapshot = cars; // сохраняем "оригинал" из БД
+      // render будет объединять реальные значения (из latestCarsSnapshot для car1 seats 1,2)
+      render(cars);
+    }, (err) => {
+      console.error('RTDB error', err);
+      trainEl.innerHTML = '<i>Ошибка при подключении к базе</i>';
+    });
+
+    // Периодическая генерация фейковых данных (локально) и обновление UI
+    function refreshFakeLocally() {
+      if (!latestCarsSnapshot) {
+        // ещё не получили данные из БД — ничего не делаем
+        return;
+      }
+      // Копируем структуру и заменяем только фейковые места
+      const cars = JSON.parse(JSON.stringify(latestCarsSnapshot));
+      for (const carId of Object.keys(cars)) {
+        // Объединяем и генерируем новые фейковые места для этого вагона
+        const newSeats = buildSeatsForCar(carId, cars[carId]);
+        cars[carId].seats = newSeats;
+      }
+      // рендерим локальную композицию (не пишем в БД)
+      render(cars);
+    }
+
+    // Запускаем интервал (каждую минуту)
+    const intervalId = setInterval(refreshFakeLocally, FAKE_UPDATE_MS);
+    // Запуск один раз сразу
+    setTimeout(refreshFakeLocally, 500);
+
+    // Остановка интервала при уходе со страницы
+    window.addEventListener('beforeunload', ()=> clearInterval(intervalId));
+  </script>
+</body>
+</html>

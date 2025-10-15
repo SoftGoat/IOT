@@ -1,0 +1,484 @@
+<!-- public/index.html -->
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Train seats monitor — demo</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <style>
+    /* styles */
+    body{
+      font-family:Arial,Helvetica,sans-serif;
+      background:#f7f7f7;
+      padding:2vh
+    }
+    h1{
+      text-align:center
+    }
+    /* container for search field and buttons*/
+    #search{
+      display:flex;
+      justify-content:center;
+      gap:10px;
+      margin:20px;
+    }
+    /* conteiner for train and legend*/
+    .train-container {
+      display: flex;
+      flex-direction: column;
+      margin-top: 2vh;
+      justify-content: space-evenly;
+      padding-bottom: 3vw;
+      margin-left: 2vw;
+      margin-right: 2vw;
+    }
+    /* train cars container */
+    #train {
+      display: inline-flex;
+      overflow-x: auto;         
+      overflow-y: hidden;
+      scroll-behavior: smooth;  
+      flex-direction: row;
+      flex-wrap: nowrap;        
+      gap: 20px;                     
+    }
+    /* each car */
+    .car {
+      flex: 0 0 220px;                      
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center; 
+      border-radius: 8px;
+    }  
+    /* car number */
+    .num {
+      font-size: 16px;
+      margin-bottom: 8px;
+      color: black;
+    }
+    /* seats grid inside car */
+    .seats{
+      height: 150px;
+      flex-direction:column;
+      width: 100%; 
+      display:flex;
+      gap:20px;
+      border-radius:8px;
+      margin-top:4px;
+      box-shadow:0 2px 6px rgba(0,0,0,0.12);
+      background:#eee; 
+      padding:5%;
+      aspect-ratio: 2;
+    }
+    /* each row of seats */
+    .seats-row {
+      min-height: 0; 
+      display: flex; 
+      flex: 1; 
+      gap: 5px;
+    }
+    /* each seat */
+    .seat{
+      min-height: 2vh;
+      flex: 1; 
+      border-radius:6px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:13px;
+      font-weight:700;
+      color:#000;
+    }
+    /* legend below train */
+    .legend{
+      gap:14px; 
+      margin-top: 1vh; 
+      justify-content: center; 
+      align-items: center;
+    }
+    /* colored dot in legend */
+    .dot{
+      width:16px;
+      height:16px;
+      display:inline-block;
+      border-radius:3px;
+      margin-right: 6px;
+    }
+    /* gap between middle rows */
+    .middle-gap {
+      margin-bottom: 20px;
+    }
+    /* button to toggle views */
+    #viewToggle button {
+      padding: 6px 14px;
+      border: 1px solid #aaa;
+      border-radius: 6px;
+      background: #fff;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    #viewToggle button.active {
+      background: #4285f4;
+      color: white;
+      border-color: #4285f4;
+    }
+    /* button to find nearest train */
+    #nearestBtn {
+      background: #eee;
+      border: 1px solid #aaa;
+      border-radius: 6px;
+      cursor: pointer;
+      padding: 6px 12px;
+      white-space: nowrap;
+    }
+    /* button to check train number */
+    #checkBtn {
+      background: #eee;
+      border: 1px solid #aaa;
+      border-radius: 6px;
+      cursor: pointer;
+      padding: 6px 12px;
+      white-space: nowrap;
+    }
+    #nearestBtn:hover {
+      background: #ddd;
+    }
+    /* amount of free seats text inside car in train view */
+    .free-seats-text {
+      display: flex;
+      justify-content: center; 
+      align-items: center;     
+      height: 100%;            
+      width: 100%;
+      font-weight: 700;
+    }
+
+    #trainInput {
+      flex: 1 1 auto; 
+      min-width: 100px; 
+      max-width: 200px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Train monitor</h1>
+  <!-- toggles for main views -->
+  <div id="viewToggle" style="display:flex;justify-content:center;gap:10px;margin-bottom:10px">
+    <button id="trainViewBtn">🚆 Train view</button>
+    <button id="seatsViewBtn" class="active">💺 Seats view</button>
+  </div>
+  <!-- search field and buttons-->
+  <div id="search">
+    <input type="number" id="trainInput" placeholder="Train number" />
+    <button id="checkBtn">Check</button>
+    <button id="nearestBtn">Find nearest train</button>
+  </div>
+  <!-- train and legend container -->
+  <div class="train-container">
+    <div id="train"></div>
+    <div class="legend" style="display:none" id="legend">
+      </div>
+  </div>
+    
+  <script type="module">
+    // Firebase setup
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js';
+    import { getDatabase, ref, onValue, get } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-database.js';
+    const firebaseConfig = {
+      apiKey: "AIzaSyCGbpMrhaH8YEkw_W9sejNX3DAPbGailI8",
+      authDomain: "iot2025-56325.firebaseapp.com",
+      databaseURL: "https://iot2025-56325-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "iot2025-56325",
+      storageBucket: "iot2025-56325.firebasestorage.app",
+      messagingSenderId: "606759241623",
+      appId: "1:606759241623:web:1335d0d444eb4d242b66d2"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    // App logic
+    const trainEl = document.getElementById('train');
+    const legendEl = document.getElementById('legend');
+    const checkBtn = document.getElementById('checkBtn');
+    const trainInput = document.getElementById('trainInput');
+    const trainViewBtn = document.getElementById('trainViewBtn');
+    const seatsViewBtn = document.getElementById('seatsViewBtn');
+    const nearestBtn = document.getElementById('nearestBtn');
+
+    //constants and global variables
+    const TOTAL_SEATS_PER_ROW = 8;  
+    const TOTAL_ROWS_PER_CAR = 4; 
+    const OCCUPIED_THRESHOLD = 70;
+
+    //default view is to show seats
+    let currentView = 'seats';
+
+    //variable to hold latest data for re-rendering
+    let latestCarIds = null;
+    let latestCarsData = null;
+
+    // unsubscribe function for Firebase listeners
+    let unsub = null;
+    let carUnsubscribes = [];
+
+    // build seats object for a car, if seats are missing, fill with fake seats  
+    function buildSeatsForCar(carId, carData) {
+      const seats = {};
+      const sourceSeats = (carData && carData.seats) ? carData.seats : {};
+      for (let i = 1; i <= TOTAL_SEATS_PER_ROW * TOTAL_ROWS_PER_CAR; i++) {
+        seats[i] = { Occupied: true, isFake: true };
+      }
+      for (const seatNum in sourceSeats) {
+        if (sourceSeats[seatNum] && sourceSeats[seatNum].Occupied !== undefined) {
+          seats[seatNum] = { 
+            Occupied: sourceSeats[seatNum].Occupied, 
+            isFake: false 
+          };
+        }
+      }
+      return seats;
+    }
+    
+    // render the train view or seats view based on currentView variable
+    function render(carIds, carsData) {
+      trainEl.innerHTML = '';
+      if (currentView === 'train') {
+        // train view: show colored cars without showing seats
+        carIds.forEach((carId, index) => {
+          const carData = carsData[carId];
+          const seats = buildSeatsForCar(carId, carData);
+          // calculate number of occupied and free seats
+          let occupied = 0, total = 0;
+          for (const s in seats) {
+            total++;
+            if (seats[s].Occupied) occupied++;
+          }
+          const free = total - occupied;
+          const percentFree = (free / total) * 100;
+          // determine car color based on free seats percentage
+          const color =
+            percentFree < 10 ? '#e6a3a3' :      
+            percentFree > 50 ? '#a9d6a9' :      
+            '#f3d6a2';
+          const carDiv = document.createElement('div');
+          carDiv.className = 'car';
+          const numDiv = document.createElement('div');
+          numDiv.className = 'num';
+          numDiv.textContent = `Car ${index + 1}`;
+          carDiv.appendChild(numDiv);
+          const seatsDiv = document.createElement('div');
+          seatsDiv.className = 'seats';
+          seatsDiv.style.background = color;
+          seatsDiv.innerHTML = `<div class="free-seats-text">${free} free seats</div>`;
+          carDiv.appendChild(seatsDiv);
+          trainEl.appendChild(carDiv);
+        });
+        // update legend for train view
+        updateLegend(currentView);
+        return;
+      }
+      else {
+        carIds.forEach((carId, index) => {
+          // seats view: show all seats in each car
+          const carData = carsData[carId];
+          const seats = buildSeatsForCar(carId, carData);
+          const carDiv = document.createElement('div');
+          carDiv.className = 'car';
+          const seatsHtml = [];
+          seatsHtml.push(`<div class="num">Car ${index + 1}</div>`);
+          seatsHtml.push(`<div class="seats">`);
+          for (let row = 0; row < TOTAL_ROWS_PER_CAR; row++) {
+            // add gap between middle rows
+            const middle =
+              row === Math.floor(TOTAL_ROWS_PER_CAR / 2) - 1 ? ' middle-gap' : '';
+            seatsHtml.push(`<div class="seats-row${middle}">`);          
+            for (let col = 0; col < TOTAL_SEATS_PER_ROW; col++) {
+              // calculate seat number
+              const seatNumber = (row + 1) + (col * TOTAL_ROWS_PER_CAR);
+              const item = seats[seatNumber] || { Occupied: true, isFake: true };
+              const dist = item.Occupied ?? true;
+              // determine seat color based on distance
+              let color = 'gray';
+              if (dist) color = 'red';
+              else color = 'green';
+              // dashed border for fake seats
+              const border = item.isFake
+                ? '2px dashed rgba(0,0,0,0.25)'
+                : '2px solid transparent';
+              seatsHtml.push(`<div class="seat" style="background:${color};border:${border}"></div>` );
+              //seatsHtml.push(`<div class="seat" style="background:${color};border:${border}">${dist}</div>` );
+            }
+            seatsHtml.push(`</div>`);
+          }
+          seatsHtml.push(`</div>`);
+          carDiv.innerHTML = seatsHtml.join('');
+          trainEl.appendChild(carDiv);
+          // update legend for seats view
+          updateLegend(currentView);
+        });
+      }
+    }
+
+    //function refreshFakeLocally() {
+    //  if (!latestCarIds || !latestCarsData) return;
+    //    render(latestCarIds, latestCarsData);
+    //console.log('refreshFakeLocally called at', new Date().toLocaleTimeString());
+    //}
+    
+    // update legend based on current view
+    function updateLegend(view) {
+      legendEl.style.display = 'flex';
+      if (view === 'train') {
+        legendEl.innerHTML = `
+          <span><span class="dot" style="background:#e6a3a3"></span>Less than 10% free</span>
+          <span><span class="dot" style="background:#f3d6a2"></span>10–50% free</span>
+          <span><span class="dot" style="background:#a9d6a9"></span>More than 50% free</span>
+        `;
+      } else if (view === 'seats') {
+        legendEl.innerHTML = `
+          <span><span class="dot" style="background:red"></span>Occupied</span>
+          <span><span class="dot" style="background:green"></span>Vacant</span>
+        `;
+      }
+    }
+    
+    // function to draw a train by its number
+    function drawTrain(trainNum) {
+      trainInput.value = trainNum;
+      checkBtn.click();
+    }
+
+    //const intervalId = setInterval(refreshFakeLocally, FAKE_UPDATE_MS);
+    
+    //setTimeout(refreshFakeLocally, 500);
+
+    // event listeners for check button
+    checkBtn.addEventListener('click', () => {
+      // get train number from input
+      const trainNum = trainInput.value.trim();
+      if (!trainNum) {
+        alert("Please enter train number");
+        return;
+      }
+      trainEl.innerHTML = 'Loading...';
+      legendEl.style.display = 'none';
+      // unsubscribe from previous listeners to previous train and cars
+      if (typeof unsub === 'function') unsub();
+      carUnsubscribes.forEach(unsubFn => {
+        if (typeof unsubFn === 'function') unsubFn();
+      });
+      carUnsubscribes = [];
+      // get cars for the train and listen to changes in real-time
+      const carsRef = ref(db, `trains/${trainNum}/cars`);
+      // get unsubscribe function and 
+      unsub = onValue(
+        carsRef,
+        async (snapshot) => {
+          const carIds = snapshot.val();
+          if (!carIds || carIds.length === 0) {
+            trainEl.innerHTML = '<i>No data or no such train</i>';
+            latestCarIds = null;
+            latestCarsData = null;
+            return;
+          }
+          // ???????????????
+          carUnsubscribes.forEach(unsubFn => {
+            if (typeof unsubFn === 'function') unsubFn();
+          });
+          carUnsubscribes = [];
+          const carsData = {};
+          latestCarIds = carIds;
+          // listen to each car data changes and get their seats
+          carIds.forEach(carId => {
+            const carRef = ref(db, `cars/${carId}`);
+            const carUnsub = onValue(carRef, (carSnapshot) => {
+              const carData = carSnapshot.val();
+              if (carData) {
+                carsData[carId] = carData;
+                latestCarsData = carsData;
+                if (Object.keys(carsData).length === carIds.length) {
+                  render(carIds, carsData);
+                  legendEl.style.display = 'flex';
+                }
+              }
+            }, (err) => {
+              console.error(`Error listening to car ${carId}:`, err);
+            });
+            carUnsubscribes.push(carUnsub);
+          });
+        },
+        (err) => {
+          console.error('RTDB error', err);
+          trainEl.innerHTML = '<i>Error</i>';
+        }
+      );
+    });
+
+    // event listeners for view toggle buttons
+    // train view button
+    trainViewBtn.addEventListener('click', () => {
+      currentView = 'train';
+      trainViewBtn.classList.add('active');
+      seatsViewBtn.classList.remove('active');
+      render(latestCarIds, latestCarsData);
+    });
+
+    // seats view button
+    seatsViewBtn.addEventListener('click', () => {
+      currentView = 'seats';
+      seatsViewBtn.classList.add('active');
+      trainViewBtn.classList.remove('active');
+      render(latestCarIds, latestCarsData);
+    });
+
+    // event listener for nearest train button
+    nearestBtn.addEventListener('click', async () => {
+    try {
+        // fetch schedule from database
+        const dbRef = ref(db, 'schedule');
+        const snapshot = await get(dbRef);
+        if (!snapshot.exists()) {
+          console.log('No schedule found');
+          return;
+        }
+        // find the nearest train based on current time
+        const schedule = snapshot.val();
+        const now = Date.now(); 
+        let nearestTime = Infinity;
+        let nearestTrain = null;
+        // iterate through schedule to find the nearest train
+        for (const date in schedule) {
+          const daySchedule = schedule[date];
+          for (const timestamp in daySchedule) {
+            const trainInfo = daySchedule[timestamp];
+            const time = Number(timestamp);
+            if (time >= now && time < nearestTime) {
+              nearestTime = time;
+              nearestTrain = trainInfo.train;
+            }
+          }
+        }
+        if (nearestTrain) {
+          console.log(`The nearest train is №${nearestTrain}`);
+          // draw the train
+          drawTrain(nearestTrain);
+        } else {
+          console.log('No trains available in the future');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+      }
+    });
+
+
+    // clean up on page unload
+    window.addEventListener('beforeunload', () => {
+      if (typeof unsub === 'function') unsub();
+      carUnsubscribes.forEach(unsubFn => {
+        if (typeof unsubFn === 'function') unsubFn();
+      });
+    });
+  </script>
+</body>
+</html>
