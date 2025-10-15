@@ -221,47 +221,77 @@
     .board-train { font-weight: 700; color: #111; }
     .board-time { font-variant-numeric: tabular-nums; color: #555; }
 
-    /* Current train info card (top-right) */
-    .current-train-card {
-      position: fixed;
-      top: 10px;
-      right: 10px;
-      width: 260px;
-      background: #fff;
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      padding: 10px 12px;
-      z-index: 900;
-    }
-    .ctc-title {
+    /* Best car recommendation box (full-width bar by default) */
+    .best-car-box {
+      position: static; /* always act like the narrow-screen bar */
+      width: 100%;
+      box-sizing: border-box;
+      margin: 8px 0 6px 0;
+      background: linear-gradient(135deg,#ffffff 0%, #edfff5 100%);
+      border: 2px solid #0b5;
+      border-radius: 12px;
+      padding: 14px 18px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.10);
+      font-size: 16px;
       font-weight: 700;
-      font-size: 14px;
-      color: #111;
-      margin-bottom: 8px;
+      color: rgb(0, 0, 0);
+      z-index: 850;
+      max-width: none;
+      line-height: 1.35;
+      text-align: center;
     }
-    .ctc-grid {
-      display: grid;
-      grid-template-columns: auto 1fr;
-      gap: 6px 10px;
-      align-items: center;
-      font-size: 14px;
-      color: #222;
+    .best-car-box .car-num { color:#0b5; font-weight:800; font-size:1.5em; }
+
+    @media (max-width: 1100px) {
+      /* Provide consistent inner padding so children have a small gap from screen edges */
+      .train-container {
+        margin-left: 0;
+        margin-right: 0;
+        padding-left: 12px;
+        padding-right: 12px;
+      }
+      /* Ensure symmetric spacing from both edges on narrow screens */
+      .current-train-bar {
+        display:flex;
+        width: 100%;
+        box-sizing: border-box;
+        margin: 8px 0 4px 0;
+      }
     }
-    .ctc-label { color: #666; }
-    .ctc-value { font-variant-numeric: tabular-nums; }
-    @media (max-width: 1000px) {
-      .current-train-card { width: 220px; top: 8px; right: 8px; padding: 8px 10px; }
-      .ctc-title { font-size: 13px; }
-      .ctc-grid { font-size: 13px; }
+
+    /* Horizontal bar variant (hidden by default, shown on narrow screens) */
+    .current-train-bar {
+      display:flex;
+      width:100%;
+      margin:8px auto 4px auto;
+      background:#fff;
+      border:1px solid #ddd;
+      border-radius:8px;
+      box-shadow:0 2px 6px rgba(0,0,0,0.08);
+      padding:6px 10px;
+      font-size:14px;
+      gap:18px;
+      align-items:center;
+      justify-content:center;
+      flex-wrap:wrap;
+      font-variant-numeric:tabular-nums;
+    }
+    .current-train-bar span { white-space:nowrap; }
+    .current-train-bar .label { color:#666; margin-right:4px; font-weight:500; }
+    .current-train-bar .value { font-weight:600; color:#111; }
+    /* Left-side static label for the current train bar */
+    .current-train-bar:before {
+      content: "Current Train:    ";
+      font-weight:700;
+      margin-right:14px;
+      color:#0a0a0a;
+      letter-spacing:0.5px;
     }
 
   </style>
 </head>
 <body>
-  <!-- Current viewed train info (top-right) -->
-  <div id="currentTrainCard" class="current-train-card" style="display:none"></div>
-  <h1>Train monitor</h1>
+  <h1>Real-Time Train Monitor</h1>
   <!-- toggles for main views -->
   <div id="viewToggle" style="display:flex;justify-content:center;gap:10px;margin-bottom:10px">
     <button id="trainViewBtn">🚆 Train view</button>
@@ -275,6 +305,9 @@
   </div>
   <!-- train and legend container -->
   <div class="train-container">
+  <!-- Always-visible recommendation and current train bar above cars -->
+  <div id="bestCarBox" class="best-car-box" style="display:none"></div>
+  <div id="currentTrainBar" class="current-train-bar" style="display:none"></div>
     <div id="train"></div>
     <div class="legend" style="display:none" id="legend">
       </div>
@@ -309,9 +342,10 @@
     const trainViewBtn = document.getElementById('trainViewBtn');
     const seatsViewBtn = document.getElementById('seatsViewBtn');
     const nearestBtn = document.getElementById('nearestBtn');
-  const upcomingContainer = document.getElementById('upcomingTrains');
-  const upcomingListEl = document.getElementById('upcomingList');
-    const currentTrainCard = document.getElementById('currentTrainCard');
+    const upcomingContainer = document.getElementById('upcomingTrains');
+    const upcomingListEl = document.getElementById('upcomingList');
+    const currentTrainBar = document.getElementById('currentTrainBar');
+    const bestCarBox = document.getElementById('bestCarBox');
 
     //constants and global variables
     const TOTAL_SEATS_PER_ROW = 8;  
@@ -365,6 +399,27 @@
     // render the train view or seats view based on currentView variable
     function render(carIds, carsData) {
       trainEl.innerHTML = '';
+      // compute free seats per car for recommendation (independent of view)
+      let recommendation = null; // {carIndex, free, total}
+      if (Array.isArray(carIds)) {
+        carIds.forEach((carId, idx) => {
+          const carData = carsData ? carsData[carId] : null;
+          const seatsObj = buildSeatsForCar(carId, carData);
+          let occupied=0, total=0;
+          for (const s in seatsObj) { total++; if (seatsObj[s].Occupied) occupied++; }
+          const free = total - occupied;
+          if (!recommendation || free > recommendation.free) {
+            recommendation = { carIndex: idx + 1, free, total };
+          }
+        });
+      }
+      // update best car box early so it shows in both views
+      if (recommendation) {
+        bestCarBox.innerHTML = `The best car for you is: <span class="car-num">Car ${recommendation.carIndex}</span><br/><small>${recommendation.free} free seats out of ${recommendation.total}</small>`;
+        bestCarBox.style.display = 'block';
+      } else {
+        bestCarBox.style.display = 'none';
+      }
       if (currentView === 'train') {
         // train view: show colored cars without showing seats
         carIds.forEach((carId, index) => {
@@ -474,7 +529,7 @@
     // Update the top-right card with current train details
     async function updateCurrentTrainCard(trainNum) {
       try {
-        if (!trainNum) { currentTrainCard.style.display = 'none'; return; }
+        if (!trainNum) { currentTrainBar.style.display = 'none'; return; }
         const dbRef = ref(db, 'schedule');
         const snapshot = await get(dbRef);
         let depTime = null;
@@ -526,18 +581,17 @@
         if (!platform) platform = `${String.fromCharCode(65 + (h % 6))}${(h % 12) + 1}`; // A-F + 1-12
         const timeText = depTime ? formatTime(depTime) : '—';
 
-        currentTrainCard.innerHTML = `
-          <div class="ctc-title">Current train</div>
-          <div class="ctc-grid">
-            <div class="ctc-label">Train:</div><div class="ctc-value">${tStr}</div>
-            <div class="ctc-label">Destination:</div><div class="ctc-value">${destination}</div>
-            <div class="ctc-label">Platform:</div><div class="ctc-value">${platform}</div>
-            <div class="ctc-label">Departure:</div><div class="ctc-value">${timeText}</div>
-          </div>`;
-        currentTrainCard.style.display = 'block';
+        // Bar version content (single line groups)
+        currentTrainBar.innerHTML = `
+          <span><span class="label">Train:</span><span class="value">${tStr}</span></span>
+          <span><span class="label">Dest:</span><span class="value">${destination}</span></span>
+            <span><span class="label">Plat:</span><span class="value">${platform}</span></span>
+          <span><span class="label">Dep:</span><span class="value">${timeText}</span></span>
+        `;
+        currentTrainBar.style.display = 'flex';
       } catch (e) {
         console.error('Failed to update current train card:', e);
-        currentTrainCard.style.display = 'none';
+        currentTrainBar.style.display = 'none';
       }
     }
 
@@ -673,7 +727,7 @@
       }
       // Update the current train info card
       updateCurrentTrainCard(trainNum);
-  // Keep current UI while new data loads for smoother UX (no blank flicker)
+      // Keep current UI while new data loads for smoother UX (no blank flicker)
       // unsubscribe from previous listeners to previous train and cars
       if (typeof unsub === 'function') unsub();
       carUnsubscribes.forEach(unsubFn => {
