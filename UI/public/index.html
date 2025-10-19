@@ -240,6 +240,12 @@
       line-height: 1.35;
       text-align: center;
     }
+    /* Full-train state */
+    .best-car-box.full {
+      background: #ffe6e6;
+      border-color: #d00;
+      color: #a00;
+    }
     .best-car-box .car-num { color:#0b5; font-weight:800; font-size:1.5em; }
 
     @media (max-width: 1100px) {
@@ -401,6 +407,7 @@
       trainEl.innerHTML = '';
       // compute free seats per car for recommendation (independent of view)
       let recommendation = null; // {carIndex, free, total}
+      let totalFreeAllCars = 0;
       if (Array.isArray(carIds)) {
         carIds.forEach((carId, idx) => {
           const carData = carsData ? carsData[carId] : null;
@@ -408,6 +415,7 @@
           let occupied=0, total=0;
           for (const s in seatsObj) { total++; if (seatsObj[s].Occupied) occupied++; }
           const free = total - occupied;
+          totalFreeAllCars += free;
           if (!recommendation || free > recommendation.free) {
             recommendation = { carIndex: idx + 1, free, total };
           }
@@ -415,8 +423,15 @@
       }
       // update best car box early so it shows in both views
       if (recommendation) {
-        bestCarBox.innerHTML = `The best car for you is: <span class="car-num">Car ${recommendation.carIndex}</span><br/><small>${recommendation.free} free seats out of ${recommendation.total}</small>`;
-        bestCarBox.style.display = 'block';
+        if (totalFreeAllCars <= 0) {
+          bestCarBox.classList.add('full');
+          bestCarBox.textContent = 'The train is full!';
+          bestCarBox.style.display = 'block';
+        } else {
+          bestCarBox.classList.remove('full');
+          bestCarBox.innerHTML = `The best car for you is: <span class="car-num">Car ${recommendation.carIndex}</span><br/><small>${recommendation.free} free seats out of ${recommendation.total}</small>`;
+          bestCarBox.style.display = 'block';
+        }
       } else {
         bestCarBox.style.display = 'none';
       }
@@ -651,10 +666,18 @@
       const rows = upcoming.map(item => {
         const tStr = String(item.train);
         const h = hashNum(tStr);
-        const dest = DESTS[h % DESTS.length];
-        const gateLetter = String.fromCharCode(65 + (h % 6)); // A-F
-        const gateNum = (h % 12) + 1; // 1-12
-        const gate = `${gateLetter}${gateNum}`;
+        const dest = (item.destination !== undefined && item.destination !== null && String(item.destination).trim() !== '')
+          ? String(item.destination)
+          : DESTS[h % DESTS.length];
+        // Prefer real platform from DB when available; otherwise use the prior dummy value
+        let gate;
+        if (item.platform !== undefined && item.platform !== null && String(item.platform).trim() !== '') {
+          gate = String(item.platform);
+        } else {
+          const gateLetter = String.fromCharCode(65 + (h % 6)); // A-F
+          const gateNum = (h % 12) + 1; // 1-12
+          gate = `${gateLetter}${gateNum}`;
+        }
         const timeText = formatTime(item.time);
         const dateText = formatDateDDMMYYYY(item.date || item.time);
         return `<div class="upcoming-item board-grid" data-train="${tStr}">
@@ -699,7 +722,10 @@
             const trainNum = entry && (entry.train ?? entry.trainNumber ?? entry.number);
             if (!trainNum) continue;
             if (timeNum >= now) {
-              upcoming.push({ train: String(trainNum), time: timeNum, date: dateKey });
+              // include destination and platform if present on the schedule entry
+              const destination = entry && (entry.destination ?? entry.dest ?? entry.to ?? null);
+              const platform = entry && entry.platform;
+              upcoming.push({ train: String(trainNum), time: timeNum, date: dateKey, destination, platform });
             }
           }
         }
