@@ -171,14 +171,17 @@ class SpawnConfigSlider:
             self.is_right_pressed = False
 
         # --- Slider Dragging Logic ---
-        # ... (The rest of the logic remains the same) ...
         if event.type == pygame.MOUSEBUTTONDOWN:
             handle_rect = pygame.Rect(
-                # ... (handle rect calculation) ...
+                self.slider_handle_pos[0] - self.slider_handle_radius, # x (top-left)
+                self.slider_handle_pos[1] - self.slider_handle_radius, # y (top-left)
+                self.slider_handle_radius * 2,                         # width (diameter)
+                self.slider_handle_radius * 2                          # height (diameter)
             )
+            
             if handle_rect.collidepoint(event.pos) or self.slider_rect.collidepoint(event.pos):
                 self.is_dragging = True
-                self.set_value(self._get_value_from_pos(event.pos[0]))
+                self.set_value
 
         elif event.type == pygame.MOUSEBUTTONUP:
             self.is_dragging = False
