@@ -375,6 +375,9 @@
   let scheduleUnsub = null;
     // simple render scheduler to avoid thrashing the DOM and to allow smooth transitions
     let renderPending = false;
+    
+    // Store current upcoming trains for periodic checking
+    let currentUpcomingTrains = [];
 
     function scheduleRender() {
       if (renderPending) return;
@@ -648,6 +651,9 @@
 
     // Render upcoming trains into the scrollable list
     function renderUpcoming(upcoming) {
+      // Store the current list for periodic checking
+      currentUpcomingTrains = upcoming;
+      
       if (!Array.isArray(upcoming) || upcoming.length === 0) {
         upcomingContainer.style.display = 'none';
         upcomingListEl.innerHTML = '';
@@ -907,6 +913,21 @@
 
     // Start schedule subscription for the upcoming trains strip
     subscribeUpcoming();
+    
+    // Check every minute if any trains in the upcoming list have already arrived
+    setInterval(() => {
+      if (!Array.isArray(currentUpcomingTrains) || currentUpcomingTrains.length === 0) {
+        return;
+      }
+      const now = Date.now();
+      // Filter out trains that have already arrived (time is in the past)
+      const stillUpcoming = currentUpcomingTrains.filter(train => train.time >= now);
+      
+      // Only re-render if the list changed
+      if (stillUpcoming.length !== currentUpcomingTrains.length) {
+        renderUpcoming(stillUpcoming);
+      }
+    }, 60000); // Check every minute (60000ms)
 
     // Simple integer holder (controller -> car mapping)
     let controller01CarId = null;
