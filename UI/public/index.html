@@ -409,33 +409,48 @@
     // render the train view or seats view based on currentView variable
     function render(carIds, carsData) {
       trainEl.innerHTML = '';
-      // compute free seats per car for recommendation (independent of view)
+      // compute recommendation by picking a random free seat across all cars
       let recommendation = null; // {carIndex, free, total}
       let totalFreeAllCars = 0;
       if (Array.isArray(carIds)) {
+        // Collect all free seats as pairs {carIndex, seatNumber}
+        const freeSeats = [];
         carIds.forEach((carId, idx) => {
           const carData = carsData ? carsData[carId] : null;
           const seatsObj = buildSeatsForCar(carId, carData);
-          let occupied=0, total=0;
-          for (const s in seatsObj) { total++; if (seatsObj[s].Occupied) occupied++; }
+          let occupied = 0, total = 0;
+          for (const s in seatsObj) {
+            total++;
+            if (seatsObj[s].Occupied) occupied++;
+            else freeSeats.push({ carIndex: idx + 1, seatNumber: s });
+          }
           const free = total - occupied;
           totalFreeAllCars += free;
-          if (!recommendation || free > recommendation.free) {
-            recommendation = { carIndex: idx + 1, free, total };
-          }
         });
+
+        // If there are free seats, pick one at random and recommend its car
+        if (freeSeats.length > 0) {
+          const pick = freeSeats[Math.floor(Math.random() * freeSeats.length)];
+          // Count total seats/free seats for that car for the small summary
+          const carIdx = pick.carIndex - 1;
+          const carId = carIds[carIdx];
+          const seatsObj = buildSeatsForCar(carId, carsData ? carsData[carId] : null);
+          let occupied = 0, total = 0;
+          for (const s in seatsObj) { total++; if (seatsObj[s].Occupied) occupied++; }
+          const free = total - occupied;
+          recommendation = { carIndex: pick.carIndex, free, total };
+        }
       }
       // update best car box early so it shows in both views
-      if (recommendation) {
-        if (totalFreeAllCars <= 0) {
-          bestCarBox.classList.add('full');
-          bestCarBox.textContent = 'The train is full!';
-          bestCarBox.style.display = 'block';
-        } else {
-          bestCarBox.classList.remove('full');
-          bestCarBox.innerHTML = `The best car for you is: <span class="car-num">Car ${recommendation.carIndex}</span><br/><small>${recommendation.free} free seats out of ${recommendation.total}</small>`;
-          bestCarBox.style.display = 'block';
-        }
+      // If train is full, show explicit full message (red) but keep size
+      if (totalFreeAllCars <= 0) {
+        bestCarBox.classList.add('full');
+        bestCarBox.textContent = 'The car is FULL!';
+        bestCarBox.style.display = 'block';
+      } else if (recommendation) {
+        bestCarBox.classList.remove('full');
+        bestCarBox.innerHTML = `The best car for you is: <span class="car-num">Car ${recommendation.carIndex}</span><br/><small>${recommendation.free} free seats out of ${recommendation.total}</small>`;
+        bestCarBox.style.display = 'block';
       } else {
         bestCarBox.style.display = 'none';
       }
@@ -535,6 +550,7 @@
         legendEl.innerHTML = `
           <span><span class="dot" style="background:red"></span>Occupied</span>
           <span><span class="dot" style="background:green"></span>Vacant</span>
+          <span><span class="dot" style="background:yellow;border:1px solid #ccc"></span>Sensor problem</span>
         `;
       }
     }
@@ -892,6 +908,60 @@
     // Start schedule subscription for the upcoming trains strip
     subscribeUpcoming();
 
+    // Simple integer holder (controller -> car mapping)
+    let controller01CarId = null;
+
+        // Periodically read integer from controllers/controller01/car and save it,
+    // then force the first seat of that car to yellow if stale (>2s)
+    setInterval(async () => {
+      try {
+        // 1) Read car id mapped to controller01
+        const controllerSnap = await get(ref(db, 'controllers/controller01/car'));
+        controller01CarId = controllerSnap.exists() ? parseInt(controllerSnap.val(), 10) : null;
+
+        // 2) Read latest_ping for that car (if we have a car id)
+        let latestPing = null;
+        if (controller01CarId !== null && !Number.isNaN(controller01CarId)) {
+          const pingSnap = await get(ref(db, `cars/${controller01CarId}/latest_ping`));
+          if (pingSnap && pingSnap.exists()) {
+            latestPing = parseInt(pingSnap.val(), 10);
+            if (Number.isFinite(latestPing) && latestPing < 10000000000) latestPing *= 1000; // seconds->ms
+          }
+        }
+
+        // 3) Determine staleness (<2s fresh, otherwise stale)
+        // Adding 70000ms for the delay in the conenction!
+        const isStale = !(Number.isFinite(latestPing)) || (Date.now() + 80000 - latestPing > 2000);
+
+        // 4) In seats view, find the car DOM by carId and force the first seat yellow when stale
+        if (currentView === 'seats' && Array.isArray(latestCarIds)) {
+          const carIndex = latestCarIds.findIndex(cid => String(cid) === String(controller01CarId));
+
+          // Clear any previously forced yellow seats that no longer apply
+          document.querySelectorAll('#train .seat[data-forced-yellow="1"]').forEach(el => {
+            if (!isStale || carIndex === -1 || !el.closest('#train .car') || Array.from(document.querySelectorAll('#train .car')).indexOf(el.closest('#train .car')) !== carIndex) {
+              el.removeAttribute('data-forced-yellow');
+              el.style.removeProperty('background-color');
+            }
+          });
+
+          if (isStale && carIndex >= 0) {
+            const carsEls = document.querySelectorAll('#train .car');
+            const carEl = carsEls[carIndex];
+            if (carEl) {
+              const firstSeat = carEl.querySelector('.seats .seats-row .seat');
+              if (firstSeat) {
+                // Use !important to avoid being overridden by other inline/background styles
+                firstSeat.style.setProperty('background-color', 'yellow', 'important');
+                firstSeat.setAttribute('data-forced-yellow', '1');
+              }
+            }
+          }
+        }
+      } catch (e) {
+        // Ignore transient errors to keep loop simple and robust
+      }
+    }, 2000); // fast interval for near real-time visual response
 
     // clean up on page unload
     window.addEventListener('beforeunload', () => {
