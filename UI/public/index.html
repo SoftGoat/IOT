@@ -239,6 +239,7 @@
       max-width: none;
       line-height: 1.35;
       text-align: center;
+      min-height: 60px; /* keep size consistent between states */
     }
     /* Full-train state */
     .best-car-box.full {
@@ -425,7 +426,7 @@
       if (recommendation) {
         if (totalFreeAllCars <= 0) {
           bestCarBox.classList.add('full');
-          bestCarBox.textContent = 'The train is full!';
+            bestCarBox.innerHTML = 'The train is full! <span class="car-num" style="visibility:hidden">Car 00</span><br/><small style="visibility:hidden">&nbsp;</small>';
           bestCarBox.style.display = 'block';
         } else {
           bestCarBox.classList.remove('full');
