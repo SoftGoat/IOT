@@ -3,7 +3,7 @@
 #include <ArduinoJson.h>
 #include <NewPing.h>
 #include <Preferences.h>
-#include "../parameters.h"
+#include "../../parameters.h"
 
 String idToken; 
 String refreshToken;
@@ -160,7 +160,7 @@ void setup(){
     delay(1000);
   }
   for (int i = 0; i < NUM_OF_SAMPLES; i++) { // Initialize with non-occupied sampled values.
-      last_samples_arr[i] = NON_ACCUPIED_SAMPLE;
+    last_samples_arr[i] = NON_ACCUPIED_SAMPLE;
   }
 }
 
