@@ -355,6 +355,9 @@
     const upcomingListEl = document.getElementById('upcomingList');
     const currentTrainBar = document.getElementById('currentTrainBar');
     const bestCarBox = document.getElementById('bestCarBox');
+  // Keep the latest upcoming list in memory so we can prune expired items by time
+  let latestUpcoming = [];
+  let upcomingPruneTimerId = null;
 
     //constants and global variables
     const TOTAL_SEATS_PER_ROW = 8;  
@@ -620,14 +623,14 @@
           clearTimeout(trainTimeoutId);
           trainTimeoutId = null;
         }
-        trainTimeoutId = setTimeout(() => {
+    trainTimeoutId = setTimeout(() => {
             trainInput.value = '';
             trainEl.innerHTML = ''; 
             legendEl.style.display = 'none';
             bestCarBox.style.display = 'none';
             currentTrainBar.style.display = 'none';
             trainTimeoutId = null;
-            alert(`🚆 Train has departed!`);
+      alert(`Choo-choo... without you! Train ${tStr} just left the station 🚆💨`);
             
           }, depTime - Date.now());
           console.log(`Alert set for ${depTime - Date.now()}`);
@@ -743,6 +746,7 @@
       scheduleUnsub = onValue(scheduleRef, (snapshot) => {
         const data = snapshot.val();
         if (!data) {
+          latestUpcoming = [];
           renderUpcoming([]);
           return;
         }
@@ -769,11 +773,28 @@
         // Sort ascending and limit the list
         upcoming.sort((a, b) => a.time - b.time);
         const limited = upcoming.slice(0, 20);
+        latestUpcoming = limited;
         renderUpcoming(limited);
       }, (err) => {
         console.error('Error listening to schedule:', err);
+        latestUpcoming = [];
         renderUpcoming([]);
       });
+
+      // Start a lightweight periodic prune so past trains disappear even if the DB doesn't change
+      if (!upcomingPruneTimerId) {
+        upcomingPruneTimerId = setInterval(() => {
+          try {
+            const nowTs = Date.now();
+            const filtered = Array.isArray(latestUpcoming)
+              ? latestUpcoming.filter(item => Number(item.time) >= nowTs)
+              : [];
+            renderUpcoming(filtered);
+          } catch (_) {
+            // ignore transient issues
+          }
+        }, 1000); // prune once per second so departed trains disappear immediately
+      }
     }
 
     //const intervalId = setInterval(refreshFakeLocally, FAKE_UPDATE_MS);
