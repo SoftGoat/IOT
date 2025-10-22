@@ -41,83 +41,139 @@ class QueueManager:
         distance = math.sqrt((r1 - r2)**2 + (c1 - c2)**2)
         return distance
 
-    def distribute_passengers_utility_based(self, k_length_ratio=10.0):
+    def distribute_passengers_utility_based(self, max_random_bias=10, std_dev_length=15.0, std_dev_distance=15.0):
         """
-        TEMPORARY TEST: Uses k_length_ratio to set opposing weights for Queue Length and Distance.
-        This test should produce EXTREME sensitivity to the slider value.
+        Distributes passengers based on a Mixed Logit (MIXL) model,
+        inspired by "A High-Fidelity Agent-Based Framework..."
+
+        This model introduces two key concepts from the paper:
         
-        New weights:
-        k_length = k_length_ratio
-        k_distance = 50.0 - k_length_ratio (where 50.0 is the max from config)
-        
-        :param k_length_ratio: The value from the slider (expected range 0.0 to 50.0).
+        1.  [cite_start]**Heterogeneous Preferences (MIXL):** [cite: 9, 10, 19]
+            Instead of one (k_length, k_distance) for all agents, *each agent n*
+            [cite_start]gets their own unique preference coefficients ($\beta_{k,n}$)[cite: 10].
+            [cite_start]These are drawn from a normal distribution[cite: 11].
+            
+        2.  [cite_start]**Imperfect / Stale Information:** [cite: 24, 26]
+            All agents make their choice based on the *initial* state of the
+            queues (all empty), simulating a "decision-action lag" where
+            [cite_start]agents can't see the choices of others arriving at the same time[cite: 30].
+            [cite_start]This can lead to "queue overshooting"[cite: 28].
+
+        :param max_random_bias: Slider value (0-100). Used to set the *mean*
+                               population preference for distance vs. length.
+        :param std_dev_length: Standard deviation for the length preference.
+                               [cite_start]Controls population heterogeneity (MIXL $\sigma_{k}$)[cite: 11].
+        :param std_dev_distance: Standard deviation for the distance preference.
+                                 [cite_start]Controls population heterogeneity (MIXL $\sigma_{k}$)[cite: 11].
         :returns: dict, {pos_key: 0} for all original spawn keys.
         """
         
-        # DEBUG PRINT STATEMENT (Keep for now to confirm the value is passed)
-        print(f"DEBUG: Using K_RATIO (slider value) = {k_length_ratio}")
-        
-        # 1. Define Opposing Weights (Max range of 50 assumed)
-        MAX_WEIGHT_VALUE = 50.0
-        
-        # Clamp the ratio to the expected range for the complementary math to work
-        k_ratio = max(0.0, min(MAX_WEIGHT_VALUE, k_length_ratio))
-        
-        # 
-        k_distance = k_ratio
+        # --- ⚙️ CALIBRATION CONSTANTS ⚙️ ---
 
-        # When k_ratio is 0, k_length is 50 and k_distance is 0.
-        k_length = MAX_WEIGHT_VALUE - k_ratio
+        # The max value of the MAX_RANDOM_BIAS slider
+        MAX_WEIGHT_VALUE = 100.0
+
+        K_LENGTH_RATIO = 25.0  # The neutral midpoint value 
         
+        # The minimum "floor" for preference weights to avoid zero/negative utility
+        MIN_PREFERENCE_WEIGHT = 0.1
+        
+        # The minimum "floor" for queue length to avoid division-by-zero
+        MIN_QUEUE_LENGTH_FLOOR = 0.5
+        
+        # The minimum "floor" for distance to avoid division-by-zero
+        MIN_DISTANCE_FLOOR = 1.0
+        
+
+        
+        # --- End of Constants ---
+
+        # DEBUG PRINT STATEMENT
+        print(f"DEBUG: Using MAX_RANDOM_BIAS (slider value) = {max_random_bias}")
+
         # 1. Clear existing assignments
         self.clear_queues()
+        
+        # --- Setup Population-Level Preference Distributions (MIXL) ---
+        
+        # The slider now controls the MEAN preference for distance
+        k_ratio = max(0.0, min(MAX_WEIGHT_VALUE, K_LENGTH_RATIO))
+        mean_distance_pref = k_ratio
+        
+        # The mean length preference is complementary
+        mean_length_pref = MAX_WEIGHT_VALUE - k_ratio
 
-        # 2. Create a working copy of spawn counts that we can decrement
-        spawn_counts = self.spawn_data.copy()
+        # --- Create the list of all individual agents to process ---
+        # This list represents all agents who will arrive "simultaneously"
+        all_agents_to_spawn = []
+        for stair_pos, count in self.spawn_data.items():
+            for _ in range(count):
+                all_agents_to_spawn.append(stair_pos)
         
-        # 3. Create a list of all spawn tiles that still have passengers
-        active_spawn_tiles = [pos for pos, count in spawn_counts.items() if count > 0]
+        # Shuffle the list to simulate random (non-ordered) decision-making
+        random.shuffle(all_agents_to_spawn)
+
+        # This will store the choice of each agent
+        agent_choices = []
         
-        # 4. Main loop: Iterate until all passengers are assigned
-        while active_spawn_tiles:
+        # Store the "stale" queue lengths. [cite_start]All agents see this[cite: 26].
+        # In this pre-simulation, all queues are initially 0.
+        stale_queue_lengths = self.queues.copy() 
+
+        # --- Main Loop: Each agent makes a choice based on STALE info ---
+        for stair_pos in all_agents_to_spawn:
             
-            # --- Randomly Select the Next Passenger's Origin ---
-            stair_pos = random.choice(active_spawn_tiles)
+            # --- 1. Generate Agent-Specific Preferences (MIXL $\beta_{k,n}$) ---
+            # [cite_start]Draw this agent's unique $\beta_{k,n}$ from the population distribution [cite: 11]
             
+            k_length_n = random.normalvariate(mean_length_pref, std_dev_length)
+            k_distance_n = random.normalvariate(mean_distance_pref, std_dev_distance)
+            
+            # Preferences can't be negative in this utility form (V = k/X)
+            k_length_n = max(MIN_PREFERENCE_WEIGHT, k_length_n) 
+            k_distance_n = max(MIN_PREFERENCE_WEIGHT, k_distance_n)
+
             best_entry_pos = None
             max_utility = -float('inf')
 
             for entry_pos in self.entry_tile_positions:
                 
-                # --- Utility Calculation Factors ---
+                # --- 2. Get Attributes (based on STALE info) ---
                 
-                # 1. Queue Length (L): Use current queue length
-                queue_length = self.queues[entry_pos]
-                L = max(queue_length, 0.5) 
+                # L = Queue Length (Non-Linear Attribute)
+                # [cite_start]Agents see the stale_queue_lengths, not the real-time ones[cite: 26].
+                queue_length = stale_queue_lengths[entry_pos] 
+                L = max(queue_length, MIN_QUEUE_LENGTH_FLOOR) # Avoid divide-by-zero
                 
-                # 2. Distance (D): Euclidean Distance from spawn to entry point
+                # D = Distance (Attribute)
                 D = self._euclidean_distance(stair_pos, entry_pos)
-                D = max(D, 1.0) 
+                D = max(D, MIN_DISTANCE_FLOOR) # Avoid divide-by-zero
 
-                # 3. Random Bias (B): A small random factor to add variety
-                B = random.uniform(0.0, 0.5)
+                # [cite_start]B = Random error term ($\epsilon_{in}$ from the paper's formula) [cite: 13]
+                B = random.uniform(0.0, max_random_bias)
 
-                # --- Utility Function (higher is better) ---
-                # The utility is calculated using the complementary weights k_length and k_distance
-                utility = (k_length / L) + (k_distance / D) + B
+                # --- 3. Utility Function (MIXL specification) ---
+                # [cite_start]U_in = $\beta_{L,n} \cdot X_{L} + \beta_{D,n} \cdot X_{D} + \epsilon_{in}$ [cite: 13]
+                # [cite_start]We use X_L = (1/L) and X_D = (1/D) to model non-linear disutility [cite: 43, 44]
+                
+                utility_length = k_length_n * (1.0 / L)
+                utility_distance = k_distance_n * (1.0 / D)
+                
+                utility = utility_length + utility_distance + B
 
                 if utility > max_utility:
                     max_utility = utility
                     best_entry_pos = entry_pos
             
-            # 5. Assign the passenger and update counts
+            # 4. Store the agent's choice
             if best_entry_pos:
-                self.queues[best_entry_pos] += 1
-                spawn_counts[stair_pos] -= 1 
-                
-                # If the spawn point is now empty, remove it from the active list
-                if spawn_counts[stair_pos] == 0:
-                    active_spawn_tiles.remove(stair_pos)
+                agent_choices.append(best_entry_pos)
+        
+        # --- 5. Apply all "simultaneous" choices to the queues ---
+        # This simulates all agents arriving at the queues *after*
+        # [cite_start]having made their choice based on the stale (empty) state[cite: 30, 31].
+        for pos in agent_choices:
+            self.queues[pos] += 1
         
         # 6. Return the zeroed spawn data for the main simulation loop
         return {pos: 0 for pos in self.spawn_data.keys()}

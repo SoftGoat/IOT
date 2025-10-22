@@ -111,7 +111,7 @@ SPAWN_BUBBLE_SIZE = 60 # Size for the square bubble image and text box
 # Parameters for queue choice utility: Utility = (K_RATIO_LENGTH / QueueLength) + (1.0 / Distance) + RandomBias
 K_RATIO_LENGTH_DEFAULT = 10
 K_RATIO_LENGTH_MIN = 0.0
-K_RATIO_LENGTH_MAX = 30.0 # Allows for extreme preference for short queues
+K_RATIO_LENGTH_MAX = 100.0 # Allows for extreme preference for short queues
 
 
 

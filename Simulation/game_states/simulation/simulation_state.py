@@ -311,11 +311,11 @@ class SimulationState(State):
         self.queue_manager.update_total_passengers(self.spawn_data)
 
         # --- Get the ratio from the UI Controller ---
-        k_length_ratio = self.ui_controller.get_queue_ratio()
+        max_random_bias = self.ui_controller.get_queue_ratio() 
 
         # 2. Execute distribution and get the dictionary needed for zeroing spawn_data
         zeroed_data_map = self.queue_manager.distribute_passengers_utility_based(
-            k_length_ratio=k_length_ratio
+            max_random_bias=max_random_bias
         )
         
         # 3. Reset internal spawn_data using the zeroed map
