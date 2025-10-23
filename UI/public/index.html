@@ -12,6 +12,7 @@
       background:#f7f7f7;
       padding:2vh
     }
+    /* header */
     h1{
       text-align:center
     }
@@ -120,6 +121,7 @@
       cursor: pointer;
       font-weight: 600;
     }
+    /* active view button */
     #viewToggle button.active {
       background: #4285f4;
       color: white;
@@ -143,6 +145,7 @@
       padding: 6px 12px;
       white-space: nowrap;
     }
+    /* hover effect for nearest train button */
     #nearestBtn:hover {
       background: #ddd;
     }
@@ -155,27 +158,29 @@
       width: 100%;
       font-weight: 700;
     }
-
+    /* train number input field */
     #trainInput {
       flex: 1 1 auto; 
       min-width: 100px; 
       max-width: 200px;
     }
-
     /* Upcoming trains container */
     .upcoming-container {
       margin-bottom: 14px;
       display: none; /* shown when data is available */
-      width: 75%;
+      width: 85%;
       margin-left: auto;
       margin-right: auto;
     }
+    /* Upcoming trains header */
     .upcoming-header {
+      display: flex;
       font-weight: 600;
       margin-bottom: 6px;
       text-align: center;
       color: #333;
     }
+    /* Upcoming trains list */
     .upcoming-list {
       max-height: 140px;
       overflow-y: auto;
@@ -189,13 +194,16 @@
       font-size: 15px;
       line-height: 1.25;
     }
+    /* Grid layout for upcoming trains */
     .board-grid {
       display: grid;
       grid-template-columns: 1.2fr 2fr 0.9fr 1fr 0.9fr; /* Train, Destination, Gate, Date, Time */
       column-gap: 12px;
       align-items: center;
     }
+    /* Header row styling */
     .board-header {
+      min-width: 700px;
       position: sticky;
       top: 0;
       z-index: 1;
@@ -209,10 +217,12 @@
       border-top-left-radius: 8px;
       border-top-right-radius: 8px;
     }
+    /* Each upcoming train item */
     .upcoming-item {
       padding: 6px 12px;      /* reduce vertical padding to fit more rows */
       border-bottom: 1px solid #eee;
       cursor: pointer;
+      min-width: 700px;
     }
     .upcoming-item:last-child { border-bottom: none; }
     .upcoming-item:nth-child(odd) { background: #fafafa; }
@@ -220,7 +230,6 @@
     .board-cell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .board-train { font-weight: 700; color: #111; }
     .board-time { font-variant-numeric: tabular-nums; color: #555; }
-
     /* Best car recommendation box (full-width bar by default) */
     .best-car-box {
       position: static; /* always act like the narrow-screen bar */
@@ -273,6 +282,15 @@
         box-sizing: border-box;
         margin: 8px 0 4px 0;
       }
+
+      .upcoming-container {
+      
+      margin-bottom: 14px;
+      display: none; /* shown when data is available */
+      width: 100%;
+      margin-left: 0;
+      margin-right: 0;
+     }
     }
 
     /* Horizontal bar variant (hidden by default, shown on narrow screens) */
@@ -308,14 +326,15 @@
 </head>
 <body>
   <h1>Real-Time Train Monitor</h1>
+  <!-- List of 20 upcoming trains-->
   <div id="upcomingTrains" class="upcoming-container">
       <div class="upcoming-header">Upcoming trains</div>
       <div id="upcomingList" class="upcoming-list"></div>
     </div>
   <!-- toggles for main views -->
   <div id="viewToggle" style="display:flex;justify-content:center;gap:10px;margin-bottom:10px">
-    <button id="trainViewBtn">🚆 Train view</button>
-    <button id="seatsViewBtn" class="active">💺 Seats view</button>
+    <button id="trainViewBtn">🚆 Car view</button>
+    <button id="seatsViewBtn" class="active">💺 Seat view</button>
   </div>
   <!-- search field and buttons-->
   <div id="search">
@@ -330,8 +349,7 @@
   <div id="currentTrainBar" class="current-train-bar" style="display:none"></div>
     <div id="train"></div>
     <div class="legend" style="display:none" id="legend">
-      </div>
-    <!-- Upcoming trains list (below diagram and legend) -->
+  </div>
   </div>
     
   <script type="module">
@@ -365,7 +383,10 @@
   // Keep the latest upcoming list in memory so we can prune expired items by time
   let latestUpcoming = [];
   let upcomingPruneTimerId = null;
+
+  //timer so page will be redrawn to show outdated seats
   let renderTimerId = null;
+
   // Keep a sticky recommended seat/car that only changes on explicit user actions
   let stickyRecommendation = null; // { carIndex, seatNumber? }
 
@@ -375,6 +396,8 @@
     //constants and global variables
     const TOTAL_SEATS_PER_ROW = 8;  
     const TOTAL_ROWS_PER_CAR = 4; 
+
+    // timeout for outdated data (in ms)
     const TIME_OUT_MS = 6 * 1000;
 
     //default view is to show seats
@@ -383,34 +406,24 @@
     //variable to hold latest data for re-rendering
     let latestCarIds = null;
     let latestCarsData = null;
+
+    // timeout ID for clearing train that have left
     let trainTimeoutId = null;
 
     // unsubscribe function for Firebase listeners
     let unsub = null;
     let carUnsubscribes = [];
-  let scheduleUnsub = null;
+    let scheduleUnsub = null;
+
     // simple render scheduler to avoid thrashing the DOM and to allow smooth transitions
     let renderPending = false;
 
-    function scheduleRender() {
-      //if (renderPending) return;
-      renderPending = true;
-      requestAnimationFrame(() => {
-        renderPending = false;
-        if (latestCarIds && latestCarsData) {
-          render(latestCarIds, latestCarsData);
-          legendEl.style.display = 'flex';
-        }
-      });
-    }
-
-    // build seats object for a car, if seats are missing, fill with fake seats  
+    // build seats object for a car, if seats are missing, fill with fake seats
+    // check for outdated data based on latest_ping
+    // return object with seat numbers as keys and { Occupied, isOutdated } as values  
     function buildSeatsForCar(carId, carData) {
       const seats = {};
       const sourceSeats = (carData && carData.seats) ? carData.seats : {};
-      // for (let i = 1; i <= TOTAL_SEATS_PER_ROW * TOTAL_ROWS_PER_CAR; i++) {
-      //   seats[i] = { Occupied: true, isOutdated: true };
-      // }
       const now = Date.now();
       for (const seatNum in sourceSeats) {
         if (!sourceSeats[seatNum] || sourceSeats[seatNum].Occupied === undefined) {
@@ -448,7 +461,6 @@
                 let latestPing = carData.latest_ping;
                 const timeDiff = now + 85000 - latestPing;
                 if (timeDiff > TIME_OUT_MS) {
-                  //console.log(latestPing, now, timeDiff);
                   seats[seatNum] = { 
                     Occupied: sourceSeats[seatNum].Occupied, 
                     isOutdated: true 
@@ -465,9 +477,8 @@
     }
     
     // render the train view or seats view based on currentView variable
+    // shows best car recommendation box
     function render(carIds, carsData) {
-      
-      //console.log('Rendering view:', currentView);
       // If no cars or no car data, keep the recommended box in grey no-data state
       const hasCars = Array.isArray(carIds) && carIds.length > 0;
       const hasCarsData = !!(carsData && typeof carsData === 'object' && Object.keys(carsData).length > 0);
@@ -539,18 +550,22 @@
           const carData = carsData[carId];
           const seats = buildSeatsForCar(carId, carData);
           // calculate number of occupied and free seats
-          let occupied = 0, total = 0;
+          let occupied = 0, total = 0, outdated = 0;
           for (const s in seats) {
             total++;
             if (seats[s].Occupied) occupied++;
+            if (seats[s].isOutdated) outdated++;
           }
           const free = total - occupied;
           const percentFree = (free / total) * 100;
           // determine car color based on free seats percentage
-          const color =
+          let color =
             percentFree < 10 ? '#e6a3a3' :      
             percentFree > 50 ? '#a9d6a9' :      
             '#f3d6a2';
+            if (outdated > 0) {
+              color = 'gray';
+            }
           const carDiv = document.createElement('div');
           carDiv.className = 'car';
           const numDiv = document.createElement('div');
@@ -563,7 +578,6 @@
           seatsDiv.innerHTML = `<div class="free-seats-text">${free} free seats</div>`;
           carDiv.appendChild(seatsDiv);
           trainEl.appendChild(carDiv);
-
         });
         // update legend for train view
         updateLegend(currentView);
@@ -587,17 +601,14 @@
             for (let col = 0; col < TOTAL_SEATS_PER_ROW; col++) {
               // calculate seat number
               const seatNumber = (row + 1) + (col * TOTAL_ROWS_PER_CAR);
-              const item = seats[seatNumber] || { Occupied: true, isFake: true };
+              const item = seats[seatNumber] || { Occupied: true, isOutdated: true };
               const dist = item.Occupied ?? true;
               // determine seat color based on distance
               let color = 'gray';
               if (dist) color = 'red';
               else color = 'green';
-              if (item.isOutdated) color = 'yellow';
-              // dashed border for fake seats
-              const border = item.isFake
-                ? '2px dashed rgba(0,0,0,0.25)'
-                : '2px solid transparent';
+              if (item.isOutdated) color = 'gray';
+              const border = '2px solid transparent';
               seatsHtml.push(`<div class="seat" style="background:${color};border:${border}"></div>` );
               //seatsHtml.push(`<div class="seat" style="background:${color};border:${border}">${dist}</div>` );
             }
@@ -612,12 +623,6 @@
       }
     }
 
-    //function refreshFakeLocally() {
-    //  if (!latestCarIds || !latestCarsData) return;
-    //    render(latestCarIds, latestCarsData);
-    //console.log('refreshFakeLocally called at', new Date().toLocaleTimeString());
-    //}
-    
     // update legend based on current view
     function updateLegend(view) {
       legendEl.style.display = 'flex';
@@ -626,12 +631,13 @@
           <span><span class="dot" style="background:#e6a3a3"></span>Less than 10% free</span>
           <span><span class="dot" style="background:#f3d6a2"></span>10–50% free</span>
           <span><span class="dot" style="background:#a9d6a9"></span>More than 50% free</span>
+          <span><span class="dot" style="background:gray;border:1px solid #ccc"></span>No recent data</span>
         `;
       } else if (view === 'seats') {
         legendEl.innerHTML = `
           <span><span class="dot" style="background:red"></span>Occupied</span>
           <span><span class="dot" style="background:green"></span>Vacant</span>
-          <span><span class="dot" style="background:yellow;border:1px solid #ccc"></span>No recent data</span>
+          <span><span class="dot" style="background:gray;border:1px solid #ccc"></span>No recent data</span>
         `;
       }
     }
@@ -667,7 +673,6 @@
         let destination = null;
         let platform = null;
         const now = Date.now();
-
         if (snapshot.exists()) {
           const schedule = snapshot.val();
           let best = { t: Infinity, entry: null };
@@ -705,7 +710,6 @@
             return;
           }
         }
-
         // Fallbacks/dummies if missing
         const tStr = String(trainNum);
         const h = hashNum(tStr);
@@ -716,6 +720,7 @@
           clearTimeout(trainTimeoutId);
           trainTimeoutId = null;
         }
+        // Set timeout to clear the train card when the train departs
         trainTimeoutId = setTimeout(() => {
             trainInput.value = '';
             trainEl.innerHTML = ''; 
@@ -726,8 +731,6 @@
             alert(`Choo-choo... without you! Train ${tStr} just left the station 🚆💨`);
             
           }, depTime - Date.now());
-          console.log(`Alert set for ${depTime - Date.now()}`);
-          
         // Bar version content (single line groups)
         currentTrainBar.innerHTML = `
           <span><span class="label">Train:</span><span class="value">${tStr}</span></span>
@@ -785,7 +788,6 @@
         // Fallback to raw string
         return String(val ?? '');
       };
-
       const header = `
         <div class="board-header board-grid">
           <div class="board-cell">Train</div>
@@ -794,7 +796,6 @@
           <div class="board-cell">Date</div>
           <div class="board-cell">Time</div>
         </div>`;
-      
       const rows = upcoming.map(item => {
         const tStr = String(item.train);
         const h = hashNum(tStr);
@@ -811,7 +812,6 @@
           gate = `${gateLetter}${gateNum}`;
         }
         const timeText = formatTime(item.time);
-    
         const dateText = formatDateDDMMYYYY(item.date || item.time);
         return `<div class="upcoming-item board-grid" data-train="${tStr}">
                   <div class="board-cell board-train">${tStr}</div>
@@ -873,7 +873,6 @@
         latestUpcoming = [];
         renderUpcoming([]);
       });
-
       // Start a lightweight periodic prune so past trains disappear even if the DB doesn't change
       if (!upcomingPruneTimerId) {
         upcomingPruneTimerId = setInterval(() => {
@@ -889,20 +888,16 @@
         }, 1000); // prune once per second so departed trains disappear immediately
       }
     }
-    
 
+    // refresh the seats view periodically to show outdated seats as time thresholds pass
     renderTimerId = setInterval(() => {
       const trainNum = trainInput.value.trim();
       renderTimerId = null;
-      //console.log('Scheduled re-render after seats view rendering at', new Date().toLocaleTimeString());
       if (trainNum && latestCarIds && latestCarsData) {
         render(latestCarIds, latestCarsData);
       }
     }, TIME_OUT_MS);          
-    //const intervalId = setInterval(refreshFakeLocally, FAKE_UPDATE_MS);
     
-    //setTimeout(refreshFakeLocally, 500);
-
     // event listeners for check button
     checkBtn.addEventListener('click', () => {
       // get train number from input
@@ -947,7 +942,6 @@
             currentTrainBar.style.display = 'flex';
             return;
           }
-          // ???????????????
           carUnsubscribes.forEach(unsubFn => {
             if (typeof unsubFn === 'function') unsubFn();
           });
@@ -1036,7 +1030,6 @@
           }
         }
         if (nearestTrain) {
-          console.log(`The nearest train is №${nearestTrain}`);
           // draw the train
           drawTrain(nearestTrain);
         } else {
@@ -1050,6 +1043,7 @@
     // Start schedule subscription for the upcoming trains strip
     subscribeUpcoming();
 
+  // Listen to controller01's car ID changes
     function listenToControllerCarId() {
       const controllerRef = ref(db, 'controllers/controller01/car');
       onValue(controllerRef, (snapshot) => {
@@ -1065,58 +1059,8 @@
       });
   }
 
+  // Start listening to controller01's car ID
   listenToControllerCarId();
-
-      
-  // setInterval(async () => {
-  //   try {
-  //     // 1) Read car id mapped to controller01
-  //     const controllerSnap = await get(ref(db, 'controllers/controller01/car'));
-  //     controller01CarId = controllerSnap.exists() ? parseInt(controllerSnap.val(), 10) : null;
-
-  //     // 2) Read latest_ping for that car (if we have a car id)
-  //     let latestPing = null;
-  //     if (controller01CarId !== null && !Number.isNaN(controller01CarId)) {
-  //       const pingSnap = await get(ref(db, `cars/${controller01CarId}/latest_ping`));
-  //       if (pingSnap && pingSnap.exists()) {
-  //         latestPing = parseInt(pingSnap.val(), 10);
-  //         if (Number.isFinite(latestPing) && latestPing < 10000000000) latestPing *= 1000; // seconds->ms
-  //       }
-  //     }
-
-  //     // 3) Determine staleness (<2s fresh, otherwise stale)
-  //     // Adding 70000ms for the delay in the conenction!
-  //     const isStale = !(Number.isFinite(latestPing)) || (Date.now() + 80000 - latestPing > 2000);
-
-  //     // 4) In seats view, find the car DOM by carId and force the first seat yellow when stale
-  //     if (currentView === 'seats' && Array.isArray(latestCarIds)) {
-  //       const carIndex = latestCarIds.findIndex(cid => String(cid) === String(controller01CarId));
-
-  //       // Clear any previously forced yellow seats that no longer apply
-  //       document.querySelectorAll('#train .seat[data-forced-yellow="1"]').forEach(el => {
-  //         if (!isStale || carIndex === -1 || !el.closest('#train .car') || Array.from(document.querySelectorAll('#train .car')).indexOf(el.closest('#train .car')) !== carIndex) {
-  //           el.removeAttribute('data-forced-yellow');
-  //           el.style.removeProperty('background-color');
-  //         }
-  //       });
-
-  //       if (isStale && carIndex >= 0) {
-  //         const carsEls = document.querySelectorAll('#train .car');
-  //         const carEl = carsEls[carIndex];
-  //         if (carEl) {
-  //           const firstSeat = carEl.querySelector('.seats .seats-row .seat');
-  //           if (firstSeat) {
-  //             // Use !important to avoid being overridden by other inline/background styles
-  //             firstSeat.style.setProperty('background-color', 'yellow', 'important');
-  //             firstSeat.setAttribute('data-forced-yellow', '1');
-  //           }
-  //         }
-  //       }
-  //     }
-  //   } catch (e) {
-  //     // Ignore transient errors to keep loop simple and robust
-  //   }
-  // }, 2000); // fast interval for near real-time visual response
 
     // clean up on page unload
     window.addEventListener('beforeunload', () => {
