@@ -10,6 +10,13 @@ from ui_elements.text_box import TextBox
 # We need to import the utility class used for the counters
 from ui_elements.text_box import TextBox # Assuming the TextBox is the counter implementation
 
+# --- RENAMED: Constants for the new slider ---
+RATIONALITY_DEFAULT = 1.0
+RATIONALITY_MIN = 0.0
+RATIONALITY_MAX = 10.0
+# ---------------------------------------------
+
+
 class SimulationUIController:
     """
     Manages all UI elements and logic for spawn point configuration 
@@ -39,40 +46,55 @@ class SimulationUIController:
 
         # UI Setup
         self.font_ui = pygame.font.Font(config.FONT_NAME, config.FONT_SIZE_UI)
-        self.action_buttons = self._create_action_buttons()
+        self.action_buttons = self._create_action_buttons() 
         
-        # --- Internal state for the queue ratio ---
-        self.queue_k_length_ratio = config.K_RATIO_LENGTH_DEFAULT
+        # --- Internal state for the queue ratio (Slider 1) ---
+        self.k_length_ratio = config.K_RATIO_LENGTH_DEFAULT
 
-        # --- Spawn Count Slider setup ---
+        # --- RENAMED: Internal state for rationality (Slider 2) ---
+        self.rationality_factor = RATIONALITY_DEFAULT
+        # -----------------------------------------------------------
+
+        # --- Slider Layout Setup ---
         slider_w = config.PALETTE_PANEL_WIDTH - 40
         slider_x = config.PALETTE_PANEL_X + 20
-        spawn_slider_y = 150  # <--- DEFINED HERE
-        slider_h = 100
-        self.spawn_count_slider = SpawnConfigSlider(
-            slider_x, spawn_slider_y, slider_w, slider_h, 
-            config.SPAWN_COUNT_DEFAULT, 
-            self._update_selected_stairs_count, # Internal callback for slider
-            min_val=0, max_val=100
-        )
-        self.spawn_count_slider.is_active = False
-
-
-        # --- Queue Ratio Slider Setup ---
-        # Position below the spawn count slider
-        ratio_slider_y = spawn_slider_y + slider_h + 30 
         
-        self.queue_ratio_slider = SpawnConfigSlider( # Reusing the slider class
+        slider_h = 80 # Taller sliders
+        
+        # 1. Queue Ratio Slider (Active)
+        ratio_slider_y = 150 # Moved up
+        self.queue_ratio_slider = SpawnConfigSlider(
             slider_x, ratio_slider_y, slider_w, slider_h, 
             config.K_RATIO_LENGTH_DEFAULT, 
-            self._update_queue_ratio, # NEW Internal callback for ratio
+            self._update_k_length_ratio, 
             min_val=config.K_RATIO_LENGTH_MIN, 
             max_val=config.K_RATIO_LENGTH_MAX
         )
-        # Ratio slider is always active in this state, unless you hide it later.
         self.queue_ratio_slider.is_active = True 
 
-        # Dialog Initialization (Dialog logic will remain in SimulationState for now)
+        # 2. RENAMED: Rationality Factor Slider (Active)
+        # Positioned below slider 1
+        bias_slider_y = ratio_slider_y + slider_h + 20 # (150 + 80 + 20 = 250)
+        self.rationality_slider = SpawnConfigSlider( # RENAMED
+            slider_x, bias_slider_y, slider_w, slider_h,
+            RATIONALITY_DEFAULT, 
+            self._update_rationality_factor, # RENAMED callback
+            min_val=RATIONALITY_MIN, 
+            max_val=RATIONALITY_MAX
+        )
+        self.rationality_slider.is_active = True # RENAMED
+        
+        # 3. Spawn Count Slider (Inactive)
+        # Positioned below slider 2
+        spawn_slider_y = bias_slider_y + slider_h + 20 # (250 + 80 + 20 = 350)
+        self.spawn_count_slider = SpawnConfigSlider(
+            slider_x, spawn_slider_y, slider_w, slider_h, 
+            config.SPAWN_COUNT_DEFAULT, 
+            self._update_selected_stairs_count, 
+            min_val=0, max_val=100
+        )
+        self.spawn_count_slider.is_active = False
+        # --- End of Slider Layout Update ---
         
         # Iterations Text Box
         export_btn_w, export_btn_h = 100, 50
@@ -92,49 +114,45 @@ class SimulationUIController:
             r, c = self.selected_stairs_pos
             pos_key = (r, c)
             
-            # 1. Update BOTH internal data structures
             self.spawn_data[pos_key] = new_count
             self.initial_spawn_data[pos_key] = new_count 
 
-            # 2. Update the visual counter with the new fraction
             if pos_key in self.counter_map:
                 specific_counter = self.counter_map[pos_key]
-                
-                # --- FIX: Ensure the display text shows the new count / initial count ---
-                # Since we update both values to new_count, the display should be new_count/new_count
                 display_text = f"{new_count}/{new_count}" 
                 specific_counter.set_value(display_text)
 
-    def _update_queue_ratio(self, new_ratio):
+    def _update_k_length_ratio(self, new_ratio):
         """Callback from the ratio slider to update internal data."""
-        
-        # --- ADD DEBUG PRINT HERE ---
-        print(f"DEBUG SLIDER CALLBACK: New Ratio Received = {new_ratio}")
-        # ----------------------------
+        self.k_length_ratio = float(new_ratio)
 
-        self.queue_k_length_ratio = float(new_ratio)
+    # RENAMED callback for Slider 2
+    def _update_rationality_factor(self, new_rationality):
+        """Callback from the rationality slider to update internal data."""
+        self.rationality_factor = float(new_rationality)
 
-    def get_queue_ratio(self):
+    def get_k_length_ratio(self):
         """Public getter for SimulationState to use."""
-        return self.queue_k_length_ratio
+        return self.k_length_ratio
+        
+    # RENAMED getter for Slider 2
+    def get_rationality_factor(self):
+        """Public getter for SimulationState to use."""
+        return self.rationality_factor
                 
     def handle_event(self, event):
         """Handles events for UI elements (slider, text box, buttons, stairs selection)."""
         
-        # Handle the Slider 
         self.spawn_count_slider.handle_event(event)
-
-        # Handle the Iterations Text Box
         self.iterations_textbox.handle_event(event)
-
-        # Handle the NEW Ratio Slider
         self.queue_ratio_slider.handle_event(event) 
+        
+        # RENAMED
+        self.rationality_slider.handle_event(event)
 
-        # Handle action button events
         for button in self.action_buttons:
             button.handle_event(event)
             
-        # Handle mouse click on a stair tile for selection
         if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1: # Left click
             mouse_x, mouse_y = event.pos
             self._select_stairs_at(mouse_x, mouse_y)
@@ -144,15 +162,17 @@ class SimulationUIController:
         for button in self.action_buttons:
             button.update()
             
-        self.spawn_count_slider.update() # RENAMED
-        self.queue_ratio_slider.update() # NEW
+        self.spawn_count_slider.update()
+        self.queue_ratio_slider.update() 
+        
+        # RENAMED
+        self.rationality_slider.update()
+        
         self.iterations_textbox.update()
         
-        # Update spawn counters
         for counter in self.spawn_counters:
             counter.update()
             
-        # Update lockout timer
         if self.click_lockout_timer > 0:
             self.click_lockout_timer -= 1
 
@@ -162,45 +182,29 @@ class SimulationUIController:
         
         self._draw_control_panel(screen)
         
-        # Draw action buttons (on the panel)
         for button in self.action_buttons:
             button.draw(screen)
                     
-        # Draw spawn counters (above the tiles)
         for counter in self.spawn_counters:
             counter.draw(screen)
             
-        # Draw highlight around selected stairs tile
         self._draw_selected_stairs_highlight(screen)
 
-        # Draw queue counters
         for counter in self.queue_counters:
             counter.draw(screen)
 
-        # Draw the Spawn Config Slider
         self.spawn_count_slider.draw(screen)
-
-        # Draw the NEW Queue Ratio Slider
         self.queue_ratio_slider.draw(screen) 
-
-
-        # Draw the description for the selected stairs
+        
+        # RENAMED
+        self.rationality_slider.draw(screen)
+        
         self._draw_stairs_description(screen) 
-
-        # Draw the iterations text box
         self.iterations_textbox.draw(screen)
 
 
-    # --- Moved Helper Methods (Retain logic, but now part of Controller) ---
-
     def _create_action_buttons(self):
         """Creates buttons for the simulation control area (Load, Run, Reset, Export)."""
-        # NOTE: Run, Reset, and Export callbacks MUST be passed in or handled by SimulationState
-        # For simplicity, we assume SimulationState will handle the button instantiation
-        # and just return the list here for drawing/event handling. 
-        # Since this controller will be initialized inside SimulationState,
-        # we will rely on SimulationState to provide the correct methods for the callbacks.
-        
         btn_w, btn_h = 95, 80 
         panel_center_x = config.PALETTE_PANEL_X + (config.PALETTE_PANEL_WIDTH // 2)
         buttons_row_y = 60
@@ -213,43 +217,30 @@ class SimulationUIController:
 
         self.load_button = Button(
             load_btn_x, 20, load_btn_w, 80, 
-            "Load Station", self.open_load_dialog, # open_load_dialog is a bound method passed in
+            "Load Station", self.open_load_dialog, 
             config.BUTTON_IN_GAME, config.BUTTON_IN_GAME_HOVER, text_size=28, hit_size=(200, 40)
         )
         
-        # NOTE: The callbacks for RUN, RESET, and EXPORT must be set up 
-        # by the parent SimulationState when it creates this controller.
-        
-        # For now, we will add placeholder methods to be overwritten by the parent.
-        # This is the messiest part of the refactor. A cleaner way is to pass all callbacks 
-        # to the __init__ of the controller.
-
         class PlaceholderCallbacks:
              def __init__(self, parent): self.parent = parent
              def _run_simulation_setup(self): print("Placeholder RUN") 
              def _reset_simulation_state(self): print("Placeholder RESET")
              def start_simulation_and_export(self): print("Placeholder EXPORT")
 
-        # Create a temporary object to hold the run/reset/export callbacks
-        # This is a bit of a hack, but works if we can't change the Button API to accept a list of callbacks
         temp_callbacks = PlaceholderCallbacks(self) 
 
-        # 2. RUN/SETUP Button
         self.run_button = Button(
             run_x, buttons_row_y, btn_w, btn_h, 
             "RUN", temp_callbacks._run_simulation_setup, 
             config.BUTTON_IN_GAME, config.BUTTON_IN_GAME_HOVER, text_size=28, hit_size=(75, 40)
         )
 
-        # 3. Reset Button
         self.reset_button = Button(
             reset_x, buttons_row_y, btn_w, btn_h, 
             "RESET", temp_callbacks._reset_simulation_state, 
             config.BUTTON_IN_GAME, config.BUTTON_IN_GAME_HOVER, text_size=28, hit_size=(75, 40)
         )
 
-
-        # 4. Run & Export Button
         run_export_btn_w = 150
         run_export_btn_h = 75
         run_export_btn_x = config.PALETTE_PANEL_X + (config.PALETTE_PANEL_WIDTH - run_export_btn_w) // 2
@@ -265,13 +256,11 @@ class SimulationUIController:
 
         return [self.load_button, self.run_button, self.reset_button, self.run_export_button]
 
-
     def _create_spawn_counters(self):
         """
         Finds all stairs tiles (ID 5) in the grid, creates a TextBox object 
         for each, and populates state dictionaries.
         """
-        # 1. Initialize and clear all related state containers
         self.counter_map.clear()
         self.spawn_data.clear()
         self.initial_spawn_data.clear() 
@@ -344,7 +333,6 @@ class SimulationUIController:
         self.queue_counters = new_queue_counters
         print(f"DEBUG: Queue counter setup complete with {len(self.queue_counter_map)} entries.")
 
-        
     def _select_stairs_at(self, mouse_x, mouse_y):
         """Handles selecting a stairs tile by clicking."""
         col = int(mouse_x // config.TILE_SIZE)
@@ -389,26 +377,35 @@ class SimulationUIController:
         panel_rect = pygame.Rect(config.PALETTE_PANEL_X, 0, config.PALETTE_PANEL_WIDTH, config.SCREEN_HEIGHT)
         pygame.draw.rect(screen, config.GRAY, panel_rect)
 
+    # --- UPDATED METHOD: _draw_stairs_description (With new Y-coordinates and text) ---
     def _draw_stairs_description(self, screen):
         """Draws the description text for the currently selected stairs tile, with wrapping."""
         
         padding = 10
         max_line_width = config.PALETTE_PANEL_WIDTH - 2 * padding
-        
-        # Adjust Y position to clear both sliders (150+100+30+100)
-        # We'll use 400 to give ample clearance.
-        text_y = 400 
         text_x = config.PALETTE_PANEL_X + padding
         
         if not self.stairs_description_text:
-            # Display Ratio Info when no stairs tile is selected
-            current_ratio = self.queue_k_length_ratio
+            # --- Condition 1: No stair selected. Draw slider info. ---
+            text_y = 350 # Y-coordinate as requested
+            
+            current_k_ratio = self.k_length_ratio
+            current_rationality = self.rationality_factor # RENAMED
+            
+            # --- UPDATED TEXT BLOCK ---
             text_to_display = (
-                f"Queue Ratio (k_length): {current_ratio:.1f}\n"
-                f"Low values favor short queues; High values favor short distances."
+                f"Queue Ratio (k_length): {current_k_ratio:.1f}\n"
+                f"(Low = Prefer Short Queues)\n"
+                f"(High = Prefer Short Distance)\n\n"
+                f"Rationality Factor: {current_rationality:.1f}\n"
+                f"(Low = Random Choice)\n"
+                f"(High = Rational Choice)"
             )
+            # --- END OF UPDATE ---
+
         else:
-            # Display Stairs Info when a stairs tile IS selected
+            # --- Condition 2: A stair IS selected. Draw stair info. ---
+            text_y = 450 # Y-coordinate as requested
             text_to_display = self.stairs_description_text
             
         words = text_to_display.replace('\n', ' ').split(' ')
@@ -418,7 +415,7 @@ class SimulationUIController:
         # Line wrapping logic
         for word in words:
             test_line = f"{current_line} {word}".strip()
-            test_surface = self.font_ui.render(test_line, True, config.BLACK) # Render using BLACK text
+            test_surface = self.font_ui.render(test_line, True, config.WHITE) 
             
             if test_surface.get_width() > max_line_width and current_line:
                 lines.append(current_line)
@@ -441,8 +438,6 @@ class SimulationUIController:
         except ValueError:
             return 1
             
-    # --- Methods to allow SimulationState to synchronize data ---
-    
     def get_spawn_data(self):
         """Returns the current spawn data dictionary."""
         return self.spawn_data

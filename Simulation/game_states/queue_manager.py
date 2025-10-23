@@ -1,5 +1,23 @@
 import random
 import math
+import numpy as np 
+
+# --- ⚙️ GLOBAL CALIBRATION CONSTANTS ⚙️ ---
+# These are the constants that were missing.
+
+# 2. Maximum value from the slider
+MAX_WEIGHT_VALUE = 100.0  
+
+# 3. Scale Parameter (mu)
+# THIS IS NO LONGER A GLOBAL CONSTANT. 
+# It will be set by the 'rationality_factor' parameter in the function.
+# MU = 1.0  <-- REMOVED
+
+# 4. Preference Heterogeneity (Standard Deviations for theta)
+# These control how much *taste variation* ($\sigma_k$) exists.
+STD_DEV_DISTANCE = 0.5
+STD_DEV_LENGTH = 0.5
+
 
 class QueueManager:
     """
@@ -41,142 +59,158 @@ class QueueManager:
         distance = math.sqrt((r1 - r2)**2 + (c1 - c2)**2)
         return distance
 
-    def distribute_passengers_utility_based(self, max_random_bias=10, std_dev_length=15.0, std_dev_distance=15.0):
-        """
-        Distributes passengers based on a Mixed Logit (MIXL) model,
-        inspired by "A High-Fidelity Agent-Based Framework..."
+    def distribute_passengers_utility_based(self, rationality_factor, k_length_ratio):
+            """
+            Distributes passengers based on a Mixed Logit (MIXL) model,
+            inspired by "A High-Fidelity Agent-Based Framework..."
+            """
 
-        This model introduces two key concepts from the paper:
-        
-        1.  [cite_start]**Heterogeneous Preferences (MIXL):** [cite: 9, 10, 19]
-            Instead of one (k_length, k_distance) for all agents, *each agent n*
-            [cite_start]gets their own unique preference coefficients ($\beta_{k,n}$)[cite: 10].
-            [cite_start]These are drawn from a normal distribution[cite: 11].
+            # --- ⚙️ HELPER FUNCTIONS (based on our previous code) ⚙️ ---
+
+            def generate_agent_preferences(theta):
+                """
+                Draws this agent's unique $\beta_{k,n}$ from the population 
+                distribution f($\beta$|$\theta$).
+                """
+                agent_betas = {}
+                for attr, params in theta.items():
+                    beta_name = f"beta_{attr}"
+                    # Draw from a normal distribution defined by population mean & std_dev
+                    agent_betas[beta_name] = np.random.normal(params['mean'], params['std_dev'])
+                return agent_betas
+
+            def calculate_systematic_utility(agent_preferences, choice_attributes):
+                """
+                Calculates the systematic utility (V_in) for one choice.
+                This is the V_in = $\sum \beta_{k,n} X_{ikn}$ part of the utility function.
+                """
+                v_in = 0.0
+                for attr, value in choice_attributes.items():
+                    beta_name = f"beta_{attr}"
+                    if beta_name in agent_preferences:
+                        v_in += agent_preferences[beta_name] * value
+                return v_in
+
+            # --- ⚙️ CALIBRATION CONSTANTS ⚙️ ---
             
-        2.  [cite_start]**Imperfect / Stale Information:** [cite: 24, 26]
-            All agents make their choice based on the *initial* state of the
-            queues (all empty), simulating a "decision-action lag" where
-            [cite_start]agents can't see the choices of others arriving at the same time[cite: 30].
-            [cite_start]This can lead to "queue overshooting"[cite: 28].
+            # --- THIS IS THE FIX ---
+            # Set the Scale Parameter (MU) from the slider value.
+            # This 'rationality_factor' parameter controls the $\epsilon$ noise.
+            MU = rationality_factor**2 / 10
+            # -----------------------
 
-        :param max_random_bias: Slider value (0-100). Used to set the *mean*
-                               population preference for distance vs. length.
-        :param std_dev_length: Standard deviation for the length preference.
-                               [cite_start]Controls population heterogeneity (MIXL $\sigma_{k}$)[cite: 11].
-        :param std_dev_distance: Standard deviation for the distance preference.
-                                 [cite_start]Controls population heterogeneity (MIXL $\sigma_{k}$)[cite: 11].
-        :returns: dict, {pos_key: 0} for all original spawn keys.
-        """
-        
-        # --- ⚙️ CALIBRATION CONSTANTS ⚙️ ---
+            # (Other constants are still global)
 
-        # The max value of the MAX_RANDOM_BIAS slider
-        MAX_WEIGHT_VALUE = 100.0
+            # --- End of Constants ---
 
-        K_LENGTH_RATIO = 25.0  # The neutral midpoint value 
-        
-        # The minimum "floor" for preference weights to avoid zero/negative utility
-        MIN_PREFERENCE_WEIGHT = 0.1
-        
-        # The minimum "floor" for queue length to avoid division-by-zero
-        MIN_QUEUE_LENGTH_FLOOR = 0.5
-        
-        # The minimum "floor" for distance to avoid division-by-zero
-        MIN_DISTANCE_FLOOR = 1.0
-        
+            # DEBUG PRINT STATEMENT
+            # print(f"DEBUG: Using MAX_RANDOM_BIAS (slider value) = {rationality_factor}")
 
-        
-        # --- End of Constants ---
+            # 1. Clear existing assignments
+            self.clear_queues()
 
-        # DEBUG PRINT STATEMENT
-        print(f"DEBUG: Using MAX_RANDOM_BIAS (slider value) = {max_random_bias}")
+            # --- 2. Setup Population-Level Preference Distributions (theta) ---
 
-        # 1. Clear existing assignments
-        self.clear_queues()
-        
-        # --- Setup Population-Level Preference Distributions (MIXL) ---
-        
-        # The slider now controls the MEAN preference for distance
-        k_ratio = max(0.0, min(MAX_WEIGHT_VALUE, K_LENGTH_RATIO))
-        mean_distance_pref = k_ratio
-        
-        # The mean length preference is complementary
-        mean_length_pref = MAX_WEIGHT_VALUE - k_ratio
+            # The slider controls the MEAN preference.
+            # We get the population mean $\overline{\beta}_{k}$ from the slider.
+            k_ratio = max(0.0, min(MAX_WEIGHT_VALUE, k_length_ratio)) / 100.0  # Normalize to [0, 1]
+            print(f"DEBUG: Using k_length_ratio (slider value) = {k_length_ratio}")
+            print(f"DEBUG: Using rationality_factor (slider value) = {MU}")
 
-        # --- Create the list of all individual agents to process ---
-        # This list represents all agents who will arrive "simultaneously"
-        all_agents_to_spawn = []
-        for stair_pos, count in self.spawn_data.items():
-            for _ in range(count):
-                all_agents_to_spawn.append(stair_pos)
-        
-        # Shuffle the list to simulate random (non-ordered) decision-making
-        random.shuffle(all_agents_to_spawn)
-
-        # This will store the choice of each agent
-        agent_choices = []
-        
-        # Store the "stale" queue lengths. [cite_start]All agents see this[cite: 26].
-        # In this pre-simulation, all queues are initially 0.
-        stale_queue_lengths = self.queues.copy() 
-
-        # --- Main Loop: Each agent makes a choice based on STALE info ---
-        for stair_pos in all_agents_to_spawn:
+            # **CRITICAL**: Distance and Length are "costs" or "disutilities".
+            # In utility theory, costs have NEGATIVE preference coefficients.
+            # A higher slider value should mean agents DISLIKE it MORE.
+            # So we make the mean preference NEGATIVE.
+            mean_distance_cost_pref = -k_ratio
+            mean_length_cost_pref = -(MAX_WEIGHT_VALUE - k_ratio)
             
-            # --- 1. Generate Agent-Specific Preferences (MIXL $\beta_{k,n}$) ---
-            # [cite_start]Draw this agent's unique $\beta_{k,n}$ from the population distribution [cite: 11]
-            
-            k_length_n = random.normalvariate(mean_length_pref, std_dev_length)
-            k_distance_n = random.normalvariate(mean_distance_pref, std_dev_distance)
-            
-            # Preferences can't be negative in this utility form (V = k/X)
-            k_length_n = max(MIN_PREFERENCE_WEIGHT, k_length_n) 
-            k_distance_n = max(MIN_PREFERENCE_WEIGHT, k_distance_n)
+            # THETA ($\theta$) is the set of parameters defining the preference distributions.
+            THETA = {
+                'distance': {
+                    'mean': mean_distance_cost_pref,
+                    'std_dev': STD_DEV_DISTANCE
+                },
+                'length': {
+                    'mean': mean_length_cost_pref,
+                    'std_dev': STD_DEV_LENGTH
+                }
+            }
 
-            best_entry_pos = None
-            max_utility = -float('inf')
+            # --- 3. Create the list of all individual agents to process ---
+            all_agents_to_spawn = []
+            for stair_pos, count in self.spawn_data.items():
+                for _ in range(count):
+                    all_agents_to_spawn.append(stair_pos)
 
-            for entry_pos in self.entry_tile_positions:
-                
-                # --- 2. Get Attributes (based on STALE info) ---
-                
-                # L = Queue Length (Non-Linear Attribute)
-                # [cite_start]Agents see the stale_queue_lengths, not the real-time ones[cite: 26].
-                queue_length = stale_queue_lengths[entry_pos] 
-                L = max(queue_length, MIN_QUEUE_LENGTH_FLOOR) # Avoid divide-by-zero
-                
-                # D = Distance (Attribute)
-                D = self._euclidean_distance(stair_pos, entry_pos)
-                D = max(D, MIN_DISTANCE_FLOOR) # Avoid divide-by-zero
+            random.shuffle(all_agents_to_spawn)
 
-                # [cite_start]B = Random error term ($\epsilon_{in}$ from the paper's formula) [cite: 13]
-                B = random.uniform(0.0, max_random_bias)
+            agent_choices = []
 
-                # --- 3. Utility Function (MIXL specification) ---
-                # [cite_start]U_in = $\beta_{L,n} \cdot X_{L} + \beta_{D,n} \cdot X_{D} + \epsilon_{in}$ [cite: 13]
-                # [cite_start]We use X_L = (1/L) and X_D = (1/D) to model non-linear disutility [cite: 43, 44]
-                
-                utility_length = k_length_n * (1.0 / L)
-                utility_distance = k_distance_n * (1.0 / D)
-                
-                utility = utility_length + utility_distance + B
+            # Store the "stale" queue lengths. All agents see this same snapshot.
+            # This is the "stale" information state.
+            stale_queue_lengths = self.queues.copy() 
 
-                if utility > max_utility:
-                    max_utility = utility
-                    best_entry_pos = entry_pos
-            
-            # 4. Store the agent's choice
-            if best_entry_pos:
-                agent_choices.append(best_entry_pos)
-        
-        # --- 5. Apply all "simultaneous" choices to the queues ---
-        # This simulates all agents arriving at the queues *after*
-        # [cite_start]having made their choice based on the stale (empty) state[cite: 30, 31].
-        for pos in agent_choices:
-            self.queues[pos] += 1
-        
-        # 6. Return the zeroed spawn data for the main simulation loop
-        return {pos: 0 for pos in self.spawn_data.keys()}
+            # --- 4. Main Loop: Each agent makes a choice based on STALE info ---
+            # This loop *is* the simulation of the MIXL integral.
+            # Each agent is one "draw" from the f($\beta$|$\theta$) distribution.
+            for stair_pos in all_agents_to_spawn:
+
+                # --- 4a. Generate Agent-Specific Preferences (MIXL $\beta_{k,n}$) ---
+                # Draw this agent's unique $\beta_{k,n}$ from the population distribution
+                agent_betas = generate_agent_preferences(THETA)
+
+                # These lists will hold the utility and corresponding choice
+                choice_utilities = []
+                possible_choices = []
+
+                # --- 4b. Evaluate all choices to get V_in for each ---
+                for entry_pos in self.entry_tile_positions:
+
+                    # i. Get attributes ($X_{ikn}$) for this choice
+                    distance = self._euclidean_distance(stair_pos, entry_pos) 
+                    queue_length = stale_queue_lengths[entry_pos]
+
+                    choice_attributes = {
+                        'distance': distance,
+                        'length': queue_length
+                    }
+
+                    # ii. Calculate Systematic Utility (V_in) for this agent
+                    v_in = calculate_systematic_utility(agent_betas, choice_attributes)
+
+                    # Store the utility and the choice
+                    choice_utilities.append(v_in)
+                    possible_choices.append(entry_pos)
+
+                # --- 4c. Make a Probabilistic Choice ---
+                # This is the "inner" logit formula: P_n(i) = exp($\mu$*V_in) / $\sum$exp($\mu$*V_jn)
+                # We apply it to *this specific agent's* calculated utilities.
+
+                # Multiply by scale parameter $\mu$ (which is now set by rationality_factor)
+                scaled_v = np.array(choice_utilities) * MU
+
+                # Use softmax for numerical stability (prevents overflow)
+                exp_v = np.exp(scaled_v - np.max(scaled_v))
+
+                # Get probabilities
+                agent_probs = exp_v / np.sum(exp_v)
+
+                # 4. Store the agent's (probabilistic) choice
+                # The agent doesn't pick the "max" utility, they pick *based on*
+                # the probabilities derived from all utilities.
+                if possible_choices:
+                    chosen_entry_pos = random.choices(possible_choices, weights=agent_probs, k=1)[0]
+                    agent_choices.append(chosen_entry_pos)
+
+            # --- 5. Apply all "simultaneous" choices to the queues ---
+            # This simulates all agents arriving at the queues *after*
+            # having made their choice based on the stale (empty) state.
+            # This is the direct cause of "queue overshooting".
+            for pos in agent_choices:
+                self.queues[pos] += 1
+
+            # 6. Return the zeroed spawn data for the main simulation loop
+            return {pos: 0 for pos in self.spawn_data.keys()}
 
     def get_queue_lengths(self):
         """Returns the current queue lengths dictionary."""
