@@ -13,7 +13,7 @@ from ui_elements.text_box import TextBox # Assuming the TextBox is the counter i
 # --- RENAMED: Constants for the new slider ---
 RATIONALITY_DEFAULT = 1.0
 RATIONALITY_MIN = 0.0
-RATIONALITY_MAX = 10.0
+RATIONALITY_MAX = 100.0
 # ---------------------------------------------
 
 

@@ -96,7 +96,11 @@ class QueueManager:
             # --- THIS IS THE FIX ---
             # Set the Scale Parameter (MU) from the slider value.
             # This 'rationality_factor' parameter controls the $\epsilon$ noise.
-            MU = rationality_factor**2 / 10
+            scaling_exponent = (rationality_factor - 80.0) / 10.0
+            scaling_factor = 2.0 ** scaling_exponent
+            MU = rationality_factor * scaling_factor
+            # Ensure MU is not negative if rationality_factor can be 0 or less
+            MU = max(0.0, MU)
             # -----------------------
 
             # (Other constants are still global)
