@@ -251,6 +251,13 @@
     }
     .best-car-box .car-num { color:#0b5; font-weight:800; font-size:1.5em; }
 
+    /* No-data state */
+    .best-car-box.nodata {
+      background: #f0f0f0;
+      border-color: #cfcfcf;
+      color: #555;
+    }
+
     @media (max-width: 1100px) {
       /* Provide consistent inner padding so children have a small gap from screen edges */
       .train-container {
@@ -359,6 +366,8 @@
   let latestUpcoming = [];
   let upcomingPruneTimerId = null;
   let renderTimerId = null;
+  // Keep a sticky recommended seat/car that only changes on explicit user actions
+  let stickyRecommendation = null; // { carIndex, seatNumber? }
 
     // variable to hold controller01's car ID
   let controller01CarId = null;
@@ -366,8 +375,7 @@
     //constants and global variables
     const TOTAL_SEATS_PER_ROW = 8;  
     const TOTAL_ROWS_PER_CAR = 4; 
-    const OCCUPIED_THRESHOLD = 70;
-    const TIME_OUT_MS = 2 * 1000 * 60;
+    const TIME_OUT_MS = 6 * 1000;
 
     //default view is to show seats
     let currentView = 'seats';
@@ -438,7 +446,7 @@
         }
         else {
                 let latestPing = carData.latest_ping;
-                const timeDiff = now - latestPing;
+                const timeDiff = now + 85000 - latestPing;
                 if (timeDiff > TIME_OUT_MS) {
                   //console.log(latestPing, now, timeDiff);
                   seats[seatNum] = { 
@@ -460,13 +468,25 @@
     function render(carIds, carsData) {
       
       //console.log('Rendering view:', currentView);
+      // If no cars or no car data, keep the recommended box in grey no-data state
+      const hasCars = Array.isArray(carIds) && carIds.length > 0;
+      const hasCarsData = !!(carsData && typeof carsData === 'object' && Object.keys(carsData).length > 0);
+      if (!hasCars || !hasCarsData) {
+        bestCarBox.classList.remove('full');
+        bestCarBox.classList.add('nodata');
+        bestCarBox.textContent = 'No data for this train.';
+        bestCarBox.style.display = 'block';
+        // Update legend to reflect the selected view even when there is no data
+        updateLegend(currentView);
+        return;
+      }
+      // We have data: now it's safe to clear the container before drawing
       trainEl.innerHTML = '';
-      // compute recommendation by picking a random free seat across all cars
-      let recommendation = null; // {carIndex, free, total}
+      // sticky recommendation: choose once and reuse across periodic renders
       let totalFreeAllCars = 0;
+      let perCarStats = [];
+      let freeSeats = [];
       if (Array.isArray(carIds)) {
-        // Collect all free seats as pairs {carIndex, seatNumber}
-        const freeSeats = [];
         carIds.forEach((carId, idx) => {
           const carData = carsData ? carsData[carId] : null;
           const seatsObj = buildSeatsForCar(carId, carData);
@@ -478,33 +498,40 @@
           }
           const free = total - occupied;
           totalFreeAllCars += free;
+          perCarStats[idx] = { free, total };
         });
-
-        // If there are free seats, pick one at random and recommend its car
-        if (freeSeats.length > 0) {
-          const pick = freeSeats[Math.floor(Math.random() * freeSeats.length)];
-          // Count total seats/free seats for that car for the small summary
-          const carIdx = pick.carIndex - 1;
-          const carId = carIds[carIdx];
-          const seatsObj = buildSeatsForCar(carId, carsData ? carsData[carId] : null);
-          let occupied = 0, total = 0;
-          for (const s in seatsObj) { total++; if (seatsObj[s].Occupied) occupied++; }
-          const free = total - occupied;
-          recommendation = { carIndex: pick.carIndex, free, total };
+        if (!stickyRecommendation) {
+          if (freeSeats.length > 0) {
+            const pick = freeSeats[Math.floor(Math.random() * freeSeats.length)];
+            stickyRecommendation = { carIndex: pick.carIndex, seatNumber: pick.seatNumber };
+          }
+        } else {
+          // If car index became invalid (car count changed), clear to allow reselection
+          if (stickyRecommendation.carIndex < 1 || stickyRecommendation.carIndex > carIds.length) {
+            stickyRecommendation = null;
+          }
         }
       }
       // update best car box early so it shows in both views
       // If train is full, show explicit full message (red) but keep size
       if (totalFreeAllCars <= 0) {
         bestCarBox.classList.add('full');
+        bestCarBox.classList.remove('nodata');
         bestCarBox.textContent = 'The car is FULL!';
         bestCarBox.style.display = 'block';
-      } else if (recommendation) {
+      } else if (stickyRecommendation) {
         bestCarBox.classList.remove('full');
-        bestCarBox.innerHTML = `The best car for you is: <span class="car-num">Car ${recommendation.carIndex}</span><br/><small>${recommendation.free} free seats out of ${recommendation.total}</small>`;
+        bestCarBox.classList.remove('nodata');
+        const idx = stickyRecommendation.carIndex - 1;
+        const stats = perCarStats[idx] || { free: 0, total: 0 };
+        bestCarBox.innerHTML = `The best car for you is: <span class="car-num">Car ${stickyRecommendation.carIndex}</span><br/><small>${stats.free} free seats out of ${stats.total}</small>`;
         bestCarBox.style.display = 'block';
       } else {
-        bestCarBox.style.display = 'none';
+        // No recommendation available: show a grey no-data box at the same size
+        bestCarBox.classList.remove('full');
+        bestCarBox.classList.add('nodata');
+        bestCarBox.textContent = 'No data for this train.';
+        bestCarBox.style.display = 'block';
       }
       if (currentView === 'train') {
         // train view: show colored cars without showing seats
@@ -663,11 +690,18 @@
             platform = best.entry.platform || null;
           }
           else {
+            // No such train in schedule: keep the current train bar visible but empty
             trainEl.innerHTML = ''; 
             legendEl.style.display = 'none';
             bestCarBox.style.display = 'none';
-            currentTrainBar.style.display = 'none';
-            trainTimeoutId = null;
+            if (trainTimeoutId !== null) { clearTimeout(trainTimeoutId); trainTimeoutId = null; }
+            currentTrainBar.innerHTML = `
+              <span><span class="label">Train:</span><span class="value"></span></span>
+              <span><span class="label">Dest:</span><span class="value"></span></span>
+              <span><span class="label">Plat:</span><span class="value"></span></span>
+              <span><span class="label">Dep:</span><span class="value"></span></span>
+            `;
+            currentTrainBar.style.display = 'flex';
             return;
           }
         }
@@ -864,7 +898,7 @@
       if (trainNum && latestCarIds && latestCarsData) {
         render(latestCarIds, latestCarsData);
       }
-    }, TIME_OUT_MS / 5);          
+    }, TIME_OUT_MS);          
     //const intervalId = setInterval(refreshFakeLocally, FAKE_UPDATE_MS);
     
     //setTimeout(refreshFakeLocally, 500);
@@ -877,6 +911,8 @@
         alert("Please enter train number");
         return;
       }
+      // Reset sticky recommendation when user explicitly checks a train
+      stickyRecommendation = null;
       // Update the current train info card
       // Keep current UI while new data loads for smoother UX (no blank flicker)
       // unsubscribe from previous listeners to previous train and cars
@@ -896,6 +932,19 @@
             trainEl.innerHTML = '<i>No data or no such train</i>';
             latestCarIds = null;
             latestCarsData = null;
+            // Show a grey no-data best-car box to keep consistent layout
+            bestCarBox.classList.remove('full');
+            bestCarBox.classList.add('nodata');
+            bestCarBox.textContent = 'No data for this train.';
+            bestCarBox.style.display = 'block';
+            // Show the current train bar shell with empty values
+            currentTrainBar.innerHTML = `
+              <span><span class="label">Train:</span><span class="value"></span></span>
+              <span><span class="label">Dest:</span><span class="value"></span></span>
+              <span><span class="label">Plat:</span><span class="value"></span></span>
+              <span><span class="label">Dep:</span><span class="value"></span></span>
+            `;
+            currentTrainBar.style.display = 'flex';
             return;
           }
           // ???????????????
@@ -960,6 +1009,8 @@
     // event listener for nearest train button
     nearestBtn.addEventListener('click', async () => {
     try {
+        // Reset sticky recommendation when selecting the nearest train
+        stickyRecommendation = null;
         // fetch schedule from database
         const dbRef = ref(db, 'schedule');
         const snapshot = await get(dbRef);
