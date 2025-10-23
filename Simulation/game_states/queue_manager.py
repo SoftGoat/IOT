@@ -6,7 +6,7 @@ import numpy as np
 # These are the constants that were missing.
 
 # 2. Maximum value from the slider
-MAX_WEIGHT_VALUE = 100.0  
+MAX_WEIGHT_VALUE = 100
 
 # 3. Scale Parameter (mu)
 # THIS IS NO LONGER A GLOBAL CONSTANT. 
@@ -117,8 +117,8 @@ class QueueManager:
 
             # The slider controls the MEAN preference.
             # We get the population mean $\overline{\beta}_{k}$ from the slider.
-            k_ratio = max(0.0, min(MAX_WEIGHT_VALUE, k_length_ratio)) / 100.0  # Normalize to [0, 1]
-            print(f"DEBUG: Using k_length_ratio (slider value) = {k_length_ratio}")
+            k_ratio = max(0.0, min(MAX_WEIGHT_VALUE, k_length_ratio))  # Clamp between 0 and MAX_WEIGHT_VALUE
+            print(f"DEBUG: Using k_length_ratio (slider value) = {k_ratio}")
             print(f"DEBUG: Using rationality_factor (slider value) = {MU}")
 
             # **CRITICAL**: Distance and Length are "costs" or "disutilities".
