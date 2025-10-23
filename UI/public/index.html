@@ -458,6 +458,7 @@
     
     // render the train view or seats view based on currentView variable
     function render(carIds, carsData) {
+      
       //console.log('Rendering view:', currentView);
       trainEl.innerHTML = '';
       // compute recommendation by picking a random free seat across all cars
@@ -603,7 +604,7 @@
         legendEl.innerHTML = `
           <span><span class="dot" style="background:red"></span>Occupied</span>
           <span><span class="dot" style="background:green"></span>Vacant</span>
-          <span><span class="dot" style="background:yellow;border:1px solid #ccc"></span>Sensor problem</span>
+          <span><span class="dot" style="background:yellow;border:1px solid #ccc"></span>No recent data</span>
         `;
       }
     }
@@ -861,7 +862,7 @@
       renderTimerId = null;
       //console.log('Scheduled re-render after seats view rendering at', new Date().toLocaleTimeString());
       if (trainNum && latestCarIds && latestCarsData) {
-        scheduleRender();
+        render(latestCarIds, latestCarsData);
       }
     }, TIME_OUT_MS / 5);          
     //const intervalId = setInterval(refreshFakeLocally, FAKE_UPDATE_MS);
@@ -915,7 +916,7 @@
                 // Render incrementally as data arrives for smoother updates
                 if (Object.keys(carsData).length === carIds.length) {
                   updateCurrentTrainCard(trainNum);
-                  scheduleRender();
+                  render(latestCarIds, latestCarsData);
                 }
               }
             }, (err) => {
@@ -1005,7 +1006,7 @@
           controller01CarId = snapshot.val();
           const trainNum = trainInput.value.trim();
           if (trainNum && latestCarIds && latestCarsData) {
-            scheduleRender();
+            render(latestCarIds, latestCarsData);
         }
         } else {
           console.log('Error from controllers/controller01/car');
