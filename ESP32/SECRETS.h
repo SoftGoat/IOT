@@ -1,6 +1,14 @@
 #ifndef _SECRETS_H
 #define _SECRETS_H
 
+/** //////////////////////////////////////////////////////////////////////
+ * 
+ *  THIS FILE IS NOT USED!
+ * 
+ *  All of the cradentials are in "sketch_http_newping/parameters.h".
+ * 
+ */ //////////////////////////////////////////////////////////////////////
+
 const char*ssid = ""; //example only - your project may have ssid/pass set by user
 const char* password = "";
 const char*  server = "speech.googleapis.com";
