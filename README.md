@@ -25,7 +25,7 @@ Arduino-ESP32 Core v3.0.0
 * ArduinoJson - version 7.4.2
 
 ## Connection diagram:
-![Connection diagram](image.png)
+![IOT/Documentation/"Connection diagram"](image.png)
 
 ## Project Poster:
  
