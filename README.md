@@ -1,6 +1,7 @@
-## XXXXX Project by :  
+## Smart Train Seating Project by : Boaz Maron, Zohar Abramovich, Libi Kogan
   
 ## Details about the project
+
  
 ## Folder description :
 * ESP32: source code for the esp side (firmware).
