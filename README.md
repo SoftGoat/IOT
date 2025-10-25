@@ -25,10 +25,9 @@ Arduino-ESP32 Core v3.0.0
 * ArduinoJson - version 7.4.2
 * Preferences - version 2.2.2
 
-## Connection diagram:
+## Project Poster:
 ![Wiring Diagram](Documentation/connection%20diagram/Wiring%20diagram.jpg)
 
-## Project Poster:
  
 This project is part of ICST - The Interdisciplinary Center for Smart Technologies, Taub Faculty of Computer Science, Technion
 https://icst.cs.technion.ac.il/ 
