@@ -20,7 +20,7 @@ Our project uses an ESP32 DevKit V1 and an HC-SR04 ultrasonic sensor to detect w
 Arduino-ESP32 Core v3.0.0
 
 ## Arduino/ESP32 libraries used in this project:
-* WiFiMamager - version 2.0.17
+* WiFiManager - version 2.0.17
 * NewPing - version 1.9.7
 * ArduinoJson - version 7.4.2
 * Preferences - version 2.2.2
