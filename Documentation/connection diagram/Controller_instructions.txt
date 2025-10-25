@@ -1,1 +1,13 @@
+In order to implement the project:
 
+1) Implement the physical part is shown in the wiring diagrams at:
+   IOT/Documentation/"connection diagram"/"Wiiring diagram.jpg".
+
+2) Change the credentials for the firebase connection to suit your account, at:
+   IOT/UI/public/index.html
+
+3) Deploy the web page through firebase.
+
+4) Plug the controller.
+
+Done!
