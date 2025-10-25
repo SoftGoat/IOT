@@ -3,7 +3,7 @@
 #include <ArduinoJson.h>
 #include <NewPing.h>
 #include <Preferences.h>
-#include "../parameters.h"
+#include "parameters.h"
 
 String idToken; 
 String refreshToken;
@@ -124,7 +124,7 @@ void setCarNumber(int newNum) {
 
 void setup(){
   Serial.begin (9600);
-  wm.resetSettings();
+  //wm.resetSettings();
   wm.setDebugOutput(false); // Disable debug logs.
   wm.setConnectTimeout(30); // WM will try to connect to saved WiFi for 30 seconds, and then move on.
   wm.setConfigPortalTimeout(60); // Creating a "hotspot" for 60 seconds.
@@ -164,13 +164,14 @@ void setup(){
   }
 }
 
-void updateRTDB(long distance, int seatNumber){
+// Update the time ping.
+void updateRTDB_time(){
   //Serial.printf("Distance: %d cm\n", distance);
   HTTPClient http;
-  String url = String(DATABASE_URL) + "/cars/" + carNumber + "/seats/" + seatNumber + "/sensorDistance.json?auth=" + idToken;
+  String url = String(DATABASE_URL) + "/cars/" + carNumber + "/latest_ping.json?auth=" + idToken;
   http.begin(url);
   http.addHeader("Content-Type", "application/json");
-  String json = String(distance);
+  String json = "{\".sv\":\"timestamp\"}";
   int httpCode = http.PUT(json);
   if (httpCode <= 0 || httpCode == 401) {
     Serial.printf("Error: %s\n", http.errorToString(httpCode).c_str());
@@ -199,7 +200,7 @@ void updateRTDB_bool(bool occupied, int seatNumber){
 void carNumberUpdateRTDB(){
   //Serial.printf("Distance: %d cm\n", distance);
   HTTPClient http;
-  String url = String(DATABASE_URL) + "/Settings/controller_index.json?auth=" + idToken;
+  String url = String(DATABASE_URL) + "/controllers/controller01/car.json?auth=" + idToken;
   http.begin(url);
   int httpCode = http.GET();
   if(httpCode == 200){
@@ -234,8 +235,9 @@ void loop(){
         last_samples_arr[last_samples_arr_index] = ping_val; // Update the samples array
         last_samples_arr_index = (last_samples_arr_index + 1) % NUM_OF_SAMPLES; // Update the array index cyclically
         bool occupied = is_occupied(last_samples_arr);
-        updateRTDB(ping_val, i);
+        updateRTDB_time(); // Updating the latest ping
         updateRTDB_bool(occupied, i);
+        carNumberUpdateRTDB();
         Serial.println(occupied);    
         Serial.println(ping_val);    
       }
