@@ -1,6 +1,8 @@
 ## Smart Train Seating Project by : Boaz Maron, Zohar Abramovich, Libi Kogan
   
 ## Details about the project
+Modern train systems often face boarding delays caused by uneven passenger distribution along the platform.
+Our project is a real-time train seat monitoring system that uses an ESP32 DevKit V1 and an HC-SR04 ultrasonic sensor to detect seat occupancy and display the results on a web interface.
 
  
 ## Folder description :
