@@ -1,25 +1,33 @@
-## XXXXX Project by :  
+## Smart Train Seating Project by : Boaz Maron, Zohar Abramovich, Libi Kogan
   
 ## Details about the project
+Modern train systems often face boarding delays caused by uneven passenger distribution along the platform.
+Our project uses an ESP32 DevKit V1 and an HC-SR04 ultrasonic sensor to detect whether seats in a train are occupied. The data is displayed on a website and used to calculate boarding statistics, showing that if passengers know where free seats are and spread along the platform accordingly, train boarding delays can be reduced.
+
+
+## Main features:
+  1) Real-time detection of free and occupied seats using ultrasonic sensors.
+  2) Automatic data transmission from ESP32 to a cloud-hosted web dashboard.
+  3) Statistical analysis of passenger flow to check boarding efficiency.
  
 ## Folder description :
-* ESP32: source code for the esp side (firmware).
-* Documentation: wiring diagram + basic operating instructions
-* Unit Tests: tests for individual hardware components (input / output devices)
-* flutter_app : dart code for our Flutter app.
-* Parameters: contains description of parameters and settings that can be modified IN YOUR CODE
-* Assets: link to 3D printed parts, Audio files used in this project, Fritzing file for connection diagram (FZZ format) etc
+* Documentation: wiring diagram + basic operating instructions.
+* ESP32: Firmware for the ESP32 microcontroller. Handles all the low-level magic.
+* Simulation: Source code for the system simulation environment.
+* UI: The user interface code.
 
 ## ESP32 SDK version used in this project: 
+Arduino-ESP32 Core v3.0.0
 
 ## Arduino/ESP32 libraries used in this project:
-* XXXX - version XXXXX
-* XXXX - version XXXXX
-* XXXX - version XXXXX
+* WiFiMamager - version 2.0.17
+* NewPing - version 1.9.7
+* ArduinoJson - version 7.4.2
 
 ## Connection diagram:
+![IOT/Documentation/"Connection diagram"](image.png)
 
 ## Project Poster:
  
 This project is part of ICST - The Interdisciplinary Center for Smart Technologies, Taub Faculty of Computer Science, Technion
-https://icst.cs.technion.ac.il/
+https://icst.cs.technion.ac.il/ 

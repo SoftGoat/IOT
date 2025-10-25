@@ -1,0 +1,2 @@
+The project wiring is as specified in "Wiring diagram.jpg" and in:
+https://wokwi.com/projects/305569599398609473
