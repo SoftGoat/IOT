@@ -20,14 +20,14 @@ Our project uses an ESP32 DevKit V1 and an HC-SR04 ultrasonic sensor to detect w
 Arduino-ESP32 Core v3.0.0
 
 ## Arduino/ESP32 libraries used in this project:
-* WiFiMamager - version 2.0.17
+* WiFiManager - version 2.0.17
 * NewPing - version 1.9.7
 * ArduinoJson - version 7.4.2
-
-## Connection diagram:
-![IOT/Documentation/"Connection diagram"](image.png)
+* Preferences - version 2.2.2
 
 ## Project Poster:
+![Wiring Diagram](Documentation/connection%20diagram/Wiring%20diagram.jpg)
+
  
 This project is part of ICST - The Interdisciplinary Center for Smart Technologies, Taub Faculty of Computer Science, Technion
 https://icst.cs.technion.ac.il/ 
