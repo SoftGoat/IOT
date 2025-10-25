@@ -26,7 +26,7 @@ Arduino-ESP32 Core v3.0.0
 * Preferences - version 2.2.2
 
 ## Connection diagram:
-![Alt text](Documantation/"connection diagram"/"Wiring diagram.jpg"?raw=true "Title")
+![Alt text](relative%20path/Documantation/"connection diagram"/"Wiring diagram.jpg"?raw=true "Title")
 
 ## Project Poster:
  
