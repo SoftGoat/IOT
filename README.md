@@ -26,7 +26,7 @@ Arduino-ESP32 Core v3.0.0
 * Preferences - version 2.2.2
 
 ## Project Poster:
-![Wiring Diagram](Documentation/connection%20diagram/Wiring%20diagram.jpg)
+![Poster](Documentation/Poster_picture.jpg)
 
  
 This project is part of ICST - The Interdisciplinary Center for Smart Technologies, Taub Faculty of Computer Science, Technion
