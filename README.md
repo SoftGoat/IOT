@@ -2,7 +2,9 @@
   
 ## Details about the project
 Modern train systems often face boarding delays caused by uneven passenger distribution along the platform.
-Our project is a real-time train seat monitoring system that uses an ESP32 DevKit V1 and an HC-SR04 ultrasonic sensor to detect seat occupancy and display the results on a web interface.
+
+Our project uses an ESP32 DevKit V1 and an HC-SR04 ultrasonic sensor to detect whether seats in a train are occupied. The data is displayed on a website and used to calculate boarding statistics, showing that if passengers know where free seats are and spread along the platform accordingly, train boarding delays can be reduced.
+
 
 ## Main features:
   - Real-time detection of free and occupied seats using ultrasonic sensors.
