@@ -23,6 +23,7 @@ Arduino-ESP32 Core v3.0.0
 * WiFiMamager - version 2.0.17
 * NewPing - version 1.9.7
 * ArduinoJson - version 7.4.2
+* Preferences - version 2.2.2
 
 ## Connection diagram:
 ![IOT/Documentation/"Connection diagram"](image.png)
