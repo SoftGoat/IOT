@@ -6,15 +6,15 @@ Our project uses an ESP32 DevKit V1 and an HC-SR04 ultrasonic sensor to detect w
 
 
 ## Main features:
-  - Real-time detection of free and occupied seats using ultrasonic sensors.
-  - Automatic data transmission from ESP32 to a cloud-hosted web dashboard.
-  - Statistical analysis of passenger flow to check boarding efficiency.
+  1) Real-time detection of free and occupied seats using ultrasonic sensors.
+  2) Automatic data transmission from ESP32 to a cloud-hosted web dashboard.
+  3) Statistical analysis of passenger flow to check boarding efficiency.
  
 ## Folder description :
 * Documentation: wiring diagram + basic operating instructions.
-* ESP32: source code for the esp side (firmware).
-* Simulation: 
-* UI:
+* ESP32: Firmware for the ESP32 microcontroller. Handles all the low-level magic.
+* Simulation: Source code for the system simulation environment.
+* UI: The user interface code.
 
 ## ESP32 SDK version used in this project: 
 Arduino-ESP32 Core v3.0.0
